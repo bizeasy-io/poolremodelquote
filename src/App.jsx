@@ -72,14 +72,14 @@ export default function App() {
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(10,37,64,0.72) 0%, rgba(10,37,64,0.60) 60%, rgba(10,37,64,0.85) 100%)' }} />
 
         <div className="relative max-w-2xl mx-auto px-6 py-16 text-center">
-          <p className="text-xs font-semibold tracking-[0.2em] uppercase mb-4" style={{ color: 'var(--pool-aqua)' }}>
+          <p className="text-sm font-semibold tracking-[0.2em] uppercase mb-4" style={{ color: 'white' }}>
             Southwest Florida Pool Remodeling
           </p>
-          <h1 className="display-font text-4xl md:text-5xl font-bold text-white leading-tight mb-5">
+          <h1 className="display-font text-5xl md:text-6xl font-bold text-white leading-tight mb-5">
             Your pool remodel.<br/>
             <span style={{ color: 'var(--pool-light)' }}>Done right.</span>
           </h1>
-          <p className="text-lg mb-8" style={{ color: 'rgba(255,255,255,0.85)' }}>
+          <p className="text-xl mb-8" style={{ color: 'rgba(255,255,255,0.85)' }}>
             Tell us about your project. We'll measure it, price it,<br className="hidden md:block"/>
             and send you a written estimate — often same day.
           </p>
@@ -95,7 +95,7 @@ export default function App() {
 
       {/* Trust bar */}
       <div className="border-b border-t" style={{ borderColor: '#ddd', background: 'white' }}>
-        <div className="max-w-2xl mx-auto px-6 py-4 flex flex-wrap justify-center gap-x-8 gap-y-2 text-sm" style={{ color: 'var(--muted)' }}>
+        <div className="max-w-2xl mx-auto px-6 py-4 flex flex-wrap justify-center gap-x-8 gap-y-2 text-base" style={{ color: 'var(--muted)' }}>
           <span>✓ Licensed &amp; insured</span>
           <span>✓ Free on-site measurement</span>
           <span>✓ Written estimate guaranteed</span>
@@ -105,10 +105,10 @@ export default function App() {
 
       {/* Form */}
       <main className="max-w-xl mx-auto px-5 py-12" ref={formRef}>
-        <h2 className="display-font text-2xl font-bold mb-1" style={{ color: 'var(--pool-deep)' }}>
+        <h2 className="display-font text-3xl font-bold mb-1" style={{ color: 'var(--pool-deep)' }}>
           Tell us about your project
         </h2>
-        <p className="text-sm mb-8" style={{ color: 'var(--muted)' }}>
+        <p className="text-base mb-8" style={{ color: 'var(--muted)' }}>
           No commitment. We'll reach out to schedule a free measurement appointment.
         </p>
 
@@ -161,7 +161,7 @@ export default function App() {
                   key={w}
                   type="button"
                   onClick={() => toggleWork(w)}
-                  className="px-3 py-2 rounded-lg text-sm font-medium border transition-all duration-150"
+                  className="px-4 py-2 rounded-lg text-base font-medium border transition-all duration-150"
                   style={form.workTypes.includes(w)
                     ? { background: 'var(--pool-deep)', color: 'white', borderColor: 'var(--pool-deep)' }
                     : { background: 'white', color: 'var(--text)', borderColor: '#d1d5db' }
@@ -179,7 +179,7 @@ export default function App() {
             <select
               value={form.finish}
               onChange={e => set('finish', e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border text-sm appearance-none"
+              className="w-full px-4 py-3 rounded-xl border text-base appearance-none"
               style={{ borderColor: '#d1d5db', background: 'white', color: form.finish ? 'var(--text)' : 'var(--muted)' }}
             >
               <option value="">Select a finish...</option>
@@ -195,7 +195,7 @@ export default function App() {
               onChange={e => set('notes', e.target.value)}
               placeholder="Pool age, current condition, gate code for access, special requests..."
               rows={3}
-              className="w-full px-4 py-3 rounded-xl border text-sm resize-none"
+              className="w-full px-4 py-3 rounded-xl border text-base resize-none"
               style={{ borderColor: '#d1d5db', background: 'white' }}
             />
           </div>
@@ -211,24 +211,24 @@ export default function App() {
               <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={handlePhotos} />
               {photos.length > 0 ? (
                 <div>
-                  <p className="text-sm font-medium" style={{ color: 'var(--pool-aqua)' }}>
+                  <p className="text-base font-medium" style={{ color: 'var(--pool-aqua)' }}>
                     ✓ {photos.length} photo{photos.length > 1 ? 's' : ''} selected
                   </p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                  <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>
                     {photos.map(p => p.name).join(', ')}
                   </p>
                 </div>
               ) : (
                 <>
-                  <p className="text-sm font-medium" style={{ color: 'var(--pool-mid)' }}>Tap to add photos</p>
-                  <p className="text-xs mt-1" style={{ color: 'var(--muted)' }}>Pool, deck, tile, coping — any photos help us prepare</p>
+                  <p className="text-base font-medium" style={{ color: 'var(--pool-mid)' }}>Tap to add photos</p>
+                  <p className="text-sm mt-1" style={{ color: 'var(--muted)' }}>Pool, deck, tile, coping — any photos help us prepare</p>
                 </>
               )}
             </div>
           </div>
 
           {error && (
-            <p className="text-sm px-4 py-3 rounded-lg" style={{ background: '#fef2f2', color: '#dc2626' }}>
+            <p className="text-base px-4 py-3 rounded-lg" style={{ background: '#fef2f2', color: '#dc2626' }}>
               {error}
             </p>
           )}
@@ -242,13 +242,13 @@ export default function App() {
             {submitting ? 'Sending your request...' : 'Get My Free Estimate →'}
           </button>
 
-          <p className="text-xs text-center" style={{ color: 'var(--muted)' }}>
+          <p className="text-sm text-center" style={{ color: 'var(--muted)' }}>
             By submitting, you agree to be contacted about your pool project. We never sell your information.
           </p>
         </form>
       </main>
 
-      <footer className="text-center py-8 text-xs" style={{ color: 'var(--muted)', borderTop: '1px solid #e5e7eb' }}>
+      <footer className="text-center py-8 text-sm" style={{ color: 'var(--muted)', borderTop: '1px solid #e5e7eb' }}>
         <p>© 2026 poolremodelquote.com &nbsp;·&nbsp; Southwest Florida Pool Remodeling Specialists</p>
       </footer>
     </div>
@@ -256,14 +256,14 @@ export default function App() {
 }
 
 function Label({ children }) {
-  return <label className="block text-sm font-semibold" style={{ color: 'var(--pool-deep)' }}>{children}</label>
+  return <label className="block text-base font-semibold" style={{ color: 'var(--pool-deep)' }}>{children}</label>
 }
 
 function Input({ ...props }) {
   return (
     <input
       {...props}
-      className="w-full px-4 py-3 rounded-xl border text-sm"
+      className="w-full px-4 py-3 rounded-xl border text-base"
       style={{ borderColor: '#d1d5db', background: 'white' }}
     />
   )
