@@ -15,7 +15,7 @@ const FINISHES = [
 const WORK_TYPES = ['Interior resurfacing', 'Waterline tile', 'Coping', 'Deck', 'Pool cage / screen', 'Equipment upgrade']
 
 // Unsplash direct CDN — free for commercial use, no attribution required for hotlinking
-const HERO_IMG = 'https://images.unsplash.com/photo-1576013551627-0cc20b96c2a7?w=1400&q=80&auto=format&fit=crop'
+const HERO_IMG = 'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?w=1400&q=80&auto=format&fit=crop'
 
 export default function App() {
   const [form, setForm] = useState({
@@ -76,7 +76,7 @@ export default function App() {
             Southwest Florida Pool Remodeling
           </p>
           <h1 className="display-font text-4xl md:text-5xl font-bold text-white leading-tight mb-5">
-            Your pool.<br/>
+            Your pool remodel.<br/>
             <span style={{ color: 'var(--pool-light)' }}>Done right.</span>
           </h1>
           <p className="text-lg mb-8" style={{ color: 'rgba(255,255,255,0.85)' }}>
