@@ -14,8 +14,8 @@ const FINISHES = [
 
 const WORK_TYPES = ['Interior resurfacing', 'Waterline tile', 'Coping', 'Deck', 'Pool cage / screen', 'Equipment upgrade']
 
-// Unsplash direct CDN — free for commercial use, no attribution required for hotlinking
-const HERO_IMG = 'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?w=1400&q=80&auto=format&fit=crop'
+// Local hero photo — pool water with travertine coping and palm frond
+const HERO_IMG = '/hero.jpg'
 
 export default function App() {
   const [form, setForm] = useState({
@@ -69,7 +69,7 @@ export default function App() {
           style={{ backgroundImage: `url(${HERO_IMG})` }}
         />
         {/* Dark overlay so text reads clearly */}
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(10,37,64,0.72) 0%, rgba(10,37,64,0.60) 60%, rgba(10,37,64,0.85) 100%)' }} />
+        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(10,37,64,0.82) 0%, rgba(10,37,64,0.72) 50%, rgba(10,37,64,0.88) 100%)' }} />
 
         <div className="relative max-w-2xl mx-auto px-6 py-16 text-center">
           <p className="text-sm font-semibold tracking-[0.2em] uppercase mb-4" style={{ color: 'white' }}>
