@@ -45,9 +45,26 @@ export default function App() {
       return
     }
     setSubmitting(true)
-    await new Promise(r => setTimeout(r, 1200))
-    setSubmitting(false)
-    setSubmitted(true)
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-lead`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          },
+          body: JSON.stringify(form),
+        }
+      )
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Submission failed')
+      setSubmitted(true)
+    } catch (err) {
+      setError('Something went wrong. Please call us directly or try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   if (submitted) return <ThankYou name={form.name} />
