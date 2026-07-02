@@ -1,14 +1,8 @@
 import { useState, useRef } from 'react'
 
 const FINISHES = [
-  'Florida Stucco (Basic)',
-  'StoneScapes White Regular',
-  'StoneScapes White Mini',
-  'StoneScapes Aqua Cool',
-  'StoneScapes Aqua Blue Mini',
-  'StoneScapes Tahoe Blue',
-  'StoneScapes Black Regular',
-  'StoneScapes Touch of Glass',
+  'Standard Plaster',
+  'Pebble Finish',
   'Not sure yet',
 ]
 
