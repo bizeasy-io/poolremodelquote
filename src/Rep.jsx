@@ -508,7 +508,7 @@ export default function RepApp() {
               key={t.key}
               onClick={() => setTab(t.key)}
               style={{
-                flex: 1, padding: '10px 8px', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                flex: 1, padding: '10px 8px', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 600,
                 background: tab === t.key ? 'white' : 'transparent',
                 color: tab === t.key ? '#f97316' : '#94a3b8',
                 borderRadius: '8px 8px 0 0',
