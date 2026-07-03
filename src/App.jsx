@@ -254,14 +254,23 @@ export default function App() {
             {submitting ? 'Sending your request...' : 'Get My Free Estimate →'}
           </button>
 
-          <p className="text-sm text-center" style={{ color: 'var(--muted)' }}>
-            By submitting, you agree to be contacted about your pool project. We never sell your information.
-          </p>
+          <div className="flex items-start gap-3">
+            <input
+              type="checkbox"
+              id="smsConsent"
+              checked={form.smsConsent}
+              onChange={e => set('smsConsent', e.target.checked)}
+              className="mt-1 h-4 w-4 shrink-0"
+            />
+            <label htmlFor="smsConsent" className="text-sm" style={{ color: 'var(--muted)' }}>
+              I agree to receive text messages from Pool Remodel Quote about my project, including appointment reminders, estimate delivery, and job updates. Message frequency varies. Message and data rates may apply. Reply STOP to opt out, HELP for help. View our <a href="/privacy-policy" style={{ color: 'var(--sky-dark)' }}>Privacy Policy</a> and <a href="/terms" style={{ color: 'var(--sky-dark)' }}>Terms of Service</a>.
+            </label>
+          </div>
         </form>
       </main>
 
       <footer className="text-center py-8 text-sm" style={{ color: 'var(--muted)', borderTop: '1px solid #e5e7eb' }}>
-        <p>© 2026 poolremodelquote.com &nbsp;·&nbsp; Southwest Florida Pool Remodeling Specialists &nbsp;·&nbsp; <a href="/privacy-policy" style={{ color: 'var(--muted)' }}>Privacy Policy</a></p>
+        <p>© 2026 poolremodelquote.com &nbsp;·&nbsp; Southwest Florida Pool Remodeling Specialists &nbsp;·&nbsp; <a href="/privacy-policy" style={{ color: 'var(--muted)' }}>Privacy Policy</a> &nbsp;·&nbsp; <a href="/terms" style={{ color: 'var(--muted)' }}>Terms of Service</a></p>
       </footer>
     </div>
   )
