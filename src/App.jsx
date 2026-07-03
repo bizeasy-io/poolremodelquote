@@ -260,7 +260,7 @@ export default function App() {
       </main>
 
       <footer className="text-center py-8 text-sm" style={{ color: 'var(--muted)', borderTop: '1px solid #e5e7eb' }}>
-        <p>© 2026 poolremodelquote.com &nbsp;·&nbsp; Southwest Florida Pool Remodeling Specialists</p>
+        <p>© 2026 poolremodelquote.com &nbsp;·&nbsp; Southwest Florida Pool Remodeling Specialists &nbsp;·&nbsp; <a href="/privacy-policy" style={{ color: 'var(--muted)' }}>Privacy Policy</a></p>
       </footer>
     </div>
   )
