@@ -131,14 +131,25 @@ function TimePicker({ value, onChange }) {
   )
 }
 
-function OnTheWay({ customerName, onCancel }) {
+function OnTheWay({ customerName, customerPhone, onCancel }) {
   const [minutes, setMinutes] = useState(20)
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
 
   const handleSend = async () => {
     setSending(true)
-    await new Promise(r => setTimeout(r, 800))
+    const msg = `${REP_NAME} from ${COMPANY_NAME} is on the way and will be at your location in ${minutes} minute${minutes === 1 ? '' : 's'}.`
+    await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-sms`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ to: customerPhone, message: msg }),
+      }
+    )
     setSent(true)
     setSending(false)
     setTimeout(onCancel, 1500)
@@ -378,7 +389,7 @@ function CustomerCard({ lead, onBack, onBooked }) {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'flex-end' }}>
           <div style={{ background: 'white', borderRadius: '20px 20px 0 0', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
             {modal === 'book' && <BookAppointment lead={lead} onBooked={handleBooked} onCancel={() => setModal(null)} />}
-            {modal === 'ontheway' && <OnTheWay customerName={lead.name.split(' ')[0]} onCancel={() => setModal(null)} />}
+            {modal === 'ontheway' && <OnTheWay customerName={lead.name.split(' ')[0]} customerPhone={lead.phone} onCancel={() => setModal(null)} />}
           </div>
         </div>
       )}
@@ -495,7 +506,7 @@ export default function RepApp() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <div style={{ color: 'white', fontWeight: 800, fontSize: 18 }}>Pool Remodel <span style={{ color: '#f97316' }}>Rep</span></div>
-            <div style={{ color: '#64748b', fontSize: 18, marginTop: 2 }}>{todayStr}</div>
+            <div style={{ color: '#94a3b8', fontSize: 15, marginTop: 2 }}>{todayStr}</div>
           </div>
           <button onClick={fetchData} style={{ color: '#64748b', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>↻</button>
         </div>
@@ -508,7 +519,7 @@ export default function RepApp() {
               key={t.key}
               onClick={() => setTab(t.key)}
               style={{
-                flex: 1, padding: '10px 8px', border: 'none', cursor: 'pointer', fontSize: 16, fontWeight: 600,
+                flex: 1, padding: '10px 8px', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 600,
                 background: tab === t.key ? 'white' : 'transparent',
                 color: tab === t.key ? '#f97316' : '#94a3b8',
                 borderRadius: '8px 8px 0 0',
