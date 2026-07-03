@@ -16,6 +16,7 @@ export default function App() {
     name: '', phone: '', email: '',
     address: '', city: '', state: 'FL', zip: '',
     workTypes: [], finish: '', notes: '',
+    smsConsent: false,
   })
   const [photos, setPhotos] = useState([])
   const [submitted, setSubmitted] = useState(false)
