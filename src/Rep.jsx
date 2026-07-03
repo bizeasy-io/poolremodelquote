@@ -495,7 +495,7 @@ export default function RepApp() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <div style={{ color: 'white', fontWeight: 800, fontSize: 18 }}>Pool Remodel <span style={{ color: '#f97316' }}>Rep</span></div>
-            <div style={{ color: '#64748b', fontSize: 12, marginTop: 2 }}>{todayStr}</div>
+            <div style={{ color: '#64748b', fontSize: 16, marginTop: 2 }}>{todayStr}</div>
           </div>
           <button onClick={fetchData} style={{ color: '#64748b', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>↻</button>
         </div>
