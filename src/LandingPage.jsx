@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { supabase } from './lib/supabase'
 
 const FINISHES = [
   'Standard Plaster',
@@ -10,6 +11,17 @@ const WORK_TYPES = ['Interior resurfacing', 'Waterline tile', 'Coping', 'Deck', 
 
 // Local hero photo — pool water with travertine coping and palm frond
 const HERO_IMG = '/hero.jpg'
+
+// Must match the file types/size allowed by the lead-photos storage bucket
+const MAX_PHOTOS = 5
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024
+const EXT_BY_TYPE = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/heic': 'heic',
+  'image/heif': 'heif',
+}
 
 export default function LandingPage() {
   const [form, setForm] = useState({
@@ -24,6 +36,7 @@ export default function LandingPage() {
   const [error, setError] = useState('')
   const fileRef = useRef()
   const formRef = useRef()
+  const submissionId = useRef(crypto.randomUUID())
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -34,8 +47,24 @@ export default function LandingPage() {
   }
 
   const handlePhotos = (e) => {
-    const files = Array.from(e.target.files).slice(0, 5)
-    setPhotos(files)
+    const incoming = Array.from(e.target.files)
+    const valid = incoming.filter(f => EXT_BY_TYPE[f.type] && f.size <= MAX_PHOTO_BYTES)
+    if (valid.length < incoming.length) {
+      setError('Some photos were skipped — only jpg, png, webp, or heic photos under 5MB are allowed.')
+    }
+    setPhotos(valid.slice(0, MAX_PHOTOS))
+  }
+
+  const uploadPhotos = async () => {
+    const uploaded = await Promise.all(photos.map(async (file) => {
+      const ext = EXT_BY_TYPE[file.type]
+      const path = `${submissionId.current}/${crypto.randomUUID()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('lead-photos')
+        .upload(path, file, { contentType: file.type })
+      return uploadError ? null : path
+    }))
+    return uploaded.filter(Boolean)
   }
 
   const handleSubmit = async (e) => {
@@ -47,6 +76,7 @@ export default function LandingPage() {
     }
     setSubmitting(true)
     try {
+      const photoPaths = await uploadPhotos()
       const res = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/submit-lead`,
         {
@@ -55,7 +85,7 @@ export default function LandingPage() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           },
-          body: JSON.stringify(form),
+          body: JSON.stringify({ ...form, photoPaths }),
         }
       )
       const data = await res.json()

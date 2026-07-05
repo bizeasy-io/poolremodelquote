@@ -55,6 +55,7 @@ export default function LeadDetail() {
   const [accessNotes, setAccessNotes] = useState("");
   const [techNotes, setTechNotes] = useState("");
   const [busy, setBusy] = useState(false);
+  const [photoUrls, setPhotoUrls] = useState([]);
 
   const days = useMemo(() => upcomingDays(), []);
 
@@ -69,6 +70,22 @@ export default function LeadDetail() {
         setTechNotes(data?.tech_notes ?? "");
       });
   }, [id]);
+
+  // photo_urls holds storage paths, not public links — the bucket is
+  // private, so techs need a signed URL to view each photo.
+  useEffect(() => {
+    const paths = lead?.photo_urls ?? [];
+    if (paths.length === 0) {
+      setPhotoUrls([]);
+      return;
+    }
+    supabase.storage
+      .from("lead-photos")
+      .createSignedUrls(paths, 3600)
+      .then(({ data }) => {
+        setPhotoUrls((data ?? []).filter((d) => d.signedUrl).map((d) => d.signedUrl));
+      });
+  }, [lead?.photo_urls]);
 
   // Load booked appointments for the selected day to compute open slots
   useEffect(() => {
@@ -209,9 +226,9 @@ export default function LeadDetail() {
             "{lead.notes}"
           </div>
         )}
-        {(lead.photo_urls ?? []).length > 0 && (
+        {photoUrls.length > 0 && (
           <div className="flex gap-2 flex-wrap">
-            {lead.photo_urls.map((url) => (
+            {photoUrls.map((url) => (
               <a key={url} href={url} target="_blank" rel="noreferrer">
                 <img
                   src={url}
@@ -222,7 +239,7 @@ export default function LeadDetail() {
             ))}
           </div>
         )}
-        {(lead.photo_urls ?? []).length === 0 && (
+        {photoUrls.length === 0 && (
           <div className="w-16 h-16 rounded-lg bg-neutral-200 flex items-center justify-center text-neutral-400">
             <ImageIcon size={22} />
           </div>
