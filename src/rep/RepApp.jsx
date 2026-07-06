@@ -5,6 +5,7 @@ import { Screen, BrandBar, ORANGE } from "./ui";
 import DayView from "./DayView";
 import LeadDetail from "./LeadDetail";
 import AppointmentDetail from "./AppointmentDetail";
+import Settings from "./Settings";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -86,6 +87,7 @@ export default function RepApp() {
       <Route index element={<DayView />} />
       <Route path="lead/:id" element={<LeadDetail />} />
       <Route path="appointment/:id" element={<AppointmentDetail />} />
+      <Route path="settings" element={<Settings />} />
     </Routes>
   );
 }

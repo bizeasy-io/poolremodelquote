@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Clock,
   CornerUpLeft,
+  Settings as SettingsIcon,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import {
@@ -114,7 +115,17 @@ export default function DayView() {
       ]);
 
       if (cancelled) return;
-      setLeads(leadsRes.data ?? []);
+      // Replied leads jump to the top (newest reply first); the rest stay
+      // oldest-created-first, matching the query's own order.
+      const sortedLeads = [...(leadsRes.data ?? [])].sort((a, b) => {
+        if (a.replied_at && b.replied_at) {
+          return new Date(b.replied_at) - new Date(a.replied_at);
+        }
+        if (a.replied_at) return -1;
+        if (b.replied_at) return 1;
+        return new Date(a.created_at) - new Date(b.created_at);
+      });
+      setLeads(sortedLeads);
       setFollowUps(followRes.data ?? []);
       setAppointments(apptRes.data ?? []);
       setLoading(false);
@@ -155,6 +166,13 @@ export default function DayView() {
           </div>
         </button>
         <div className="flex gap-2">
+          <button
+            onClick={() => navigate("/rep/settings")}
+            aria-label="Settings"
+            className="w-10 h-10 rounded-full border border-white/30 bg-white/10 text-white flex items-center justify-center"
+          >
+            <SettingsIcon size={20} />
+          </button>
           {!today && (
             <button
               onClick={() => shiftDay(-1)}
@@ -317,7 +335,9 @@ export default function DayView() {
                 <div className="text-white text-sm font-medium">{f.name}</div>
                 <div className="text-[12.5px]" style={{ color: "#b8c6cd" }}>
                   {f.status === "nurturing"
-                    ? `Text ${Math.min(f.nurture_step + 1, 3)} of 3 sent · booking link active`
+                    ? f.nurture_step === 3
+                      ? "Text 3 of 3 sent — archives soon · booking link active"
+                      : `Text ${f.nurture_step} of 3 sent · booking link active`
                     : "Called — no answer yet"}
                 </div>
               </div>

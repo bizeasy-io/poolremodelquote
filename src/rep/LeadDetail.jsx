@@ -16,6 +16,7 @@ import {
   fmtTime,
   fmtScheduledLabel,
   isSameDay,
+  DEFAULT_AVAILABILITY,
 } from "../lib/slots";
 
 function AccessToggle({ label, value, onChange }) {
@@ -56,8 +57,20 @@ export default function LeadDetail() {
   const [techNotes, setTechNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [photoUrls, setPhotoUrls] = useState([]);
+  const [availability, setAvailability] = useState(DEFAULT_AVAILABILITY);
 
-  const days = useMemo(() => upcomingDays(), []);
+  const days = useMemo(() => upcomingDays(availability), [availability]);
+
+  useEffect(() => {
+    supabase
+      .from("tech_availability")
+      .select("*")
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setAvailability(data);
+      });
+  }, []);
 
   useEffect(() => {
     supabase
@@ -103,8 +116,9 @@ export default function LeadDetail() {
   }, [selectedDay]);
 
   const slots = useMemo(
-    () => (selectedDay ? slotsForDay(selectedDay, dayAppointments) : []),
-    [selectedDay, dayAppointments],
+    () =>
+      selectedDay ? slotsForDay(selectedDay, dayAppointments, availability) : [],
+    [selectedDay, dayAppointments, availability],
   );
 
   async function saveTechNotes() {
@@ -154,14 +168,20 @@ export default function LeadDetail() {
       await supabase
         .from("leads")
         .update({
-          status: "attempted",
+          status: "nurturing",
+          nurture_step: 1,
           last_contact_attempt_at: new Date().toISOString(),
           tech_notes: techNotes || null,
         })
         .eq("id", id);
-      // Phase 2B: this is where the day-0 nurture text fires and
-      // status moves to 'nurturing'. In 2A the lead just moves to
-      // the follow-up section for a manual retry.
+      try {
+        await supabase.functions.invoke("send-sms", {
+          body: { type: "nurture_day0", lead_id: id },
+        });
+      } catch (e) {
+        // The day-1 tick is the safety net if this send fails — still navigate.
+        console.error("nurture_day0 send failed:", e);
+      }
       navigate("/rep");
     } finally {
       setBusy(false);

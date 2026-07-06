@@ -1,14 +1,11 @@
-// send-sms — template-driven outbound texts for the rep app.
+// send-sms v2 — adds the nurture-loop templates and self-booking links.
 // Deploy: supabase functions deploy send-sms
-// (JWT verification stays ON — only logged-in techs can invoke this,
-//  unlike submit-lead which is public.)
+// (JWT verification stays ON.)
 //
-// Secrets used (already set for submit-lead, plus one new):
+// Secrets used:
 //   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
-//   SAM_PHONE_NUMBER  (contractor notification number)
-//   BUSINESS_NAME     (NEW — set with: supabase secrets set BUSINESS_NAME="Rogers Pool Finishes")
-//
-// Templates live server-side so the client can never send arbitrary text.
+//   SAM_PHONE_NUMBER, BUSINESS_NAME
+//   SITE_URL (NEW — set with: supabase secrets set SITE_URL="https://poolremodelquote.com")
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -23,10 +20,11 @@ type Payload = {
     | "appointment_booked"
     | "on_the_way"
     | "measure_complete"
-    | "no_access";
+    | "no_access"
+    | "nurture_day0";
   lead_id: string;
-  minutes?: number; // on_the_way only
-  scheduled_label?: string; // appointment_booked only, e.g. "Monday, July 7 at 10:30 AM"
+  minutes?: number;
+  scheduled_label?: string;
 };
 
 async function sendText(to: string, body: string) {
@@ -45,8 +43,7 @@ async function sendText(to: string, body: string) {
     },
   );
   if (!resp.ok) {
-    const err = await resp.text();
-    console.error("Twilio error:", err);
+    console.error("Twilio error:", await resp.text());
     throw new Error("SMS send failed");
   }
 }
@@ -59,21 +56,22 @@ Deno.serve(async (req) => {
   try {
     const payload: Payload = await req.json();
     const business = Deno.env.get("BUSINESS_NAME") ?? "Pool Remodel Quote";
+    const siteUrl = Deno.env.get("SITE_URL") ?? "https://poolremodelquote.com";
     const contractorPhone = Deno.env.get("SAM_PHONE_NUMBER");
 
-    // Look up the lead server-side so the client never supplies phone numbers
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
     const { data: lead, error } = await supabase
       .from("leads")
-      .select("name, phone")
+      .select("name, phone, booking_token")
       .eq("id", payload.lead_id)
       .single();
     if (error || !lead) throw new Error("Lead not found");
 
     const firstName = (lead.name ?? "").split(" ")[0] || "there";
+    const bookLink = `${siteUrl}/book/${lead.booking_token}`;
     const sends: Promise<void>[] = [];
 
     switch (payload.type) {
@@ -108,14 +106,26 @@ Deno.serve(async (req) => {
       case "no_access": {
         sends.push(sendText(
           lead.phone,
-          `Hi ${firstName}, ${business} came by for your pool measure but couldn't get into the backyard. We'll reach out to reschedule — or call us back anytime.`,
+          `Hi ${firstName}, ${business} came by for your pool measure but couldn't get into the backyard. Tap here to pick a new time — you don't need to be home, we just need gate access: ${bookLink}`,
         ));
         if (contractorPhone) {
           sends.push(sendText(
             contractorPhone,
-            `Couldn't access backyard at ${lead.name}'s — measure needs rebooking.`,
+            `Couldn't access backyard at ${lead.name}'s — rebook link sent to customer.`,
           ));
         }
+        break;
+      }
+      case "nurture_day0": {
+        // Fired the moment the tech taps "No answer"
+        sends.push(sendText(
+          lead.phone,
+          `Hi ${firstName}, sorry we missed you — this is ${business} about your pool estimate. We can't prepare your estimate until we've seen and measured the pool. Tap here to pick a time that works (you don't need to be home): ${bookLink}`,
+        ));
+        await supabase.from("nurture_messages").insert({
+          lead_id: payload.lead_id,
+          step: 0,
+        });
         break;
       }
       default:
