@@ -3,6 +3,9 @@
 // Protected by a shared secret header instead of a user JWT:
 //   supabase secrets set CRON_SECRET="<long random string>"
 //
+// Also reads TECH_PHONE_NUMBER (optional) to add a call/text fallback line
+// to the day-1/day-3 texts, same secret send-sms uses for nurture_day0.
+//
 // Each run:
 //   step 1 (day 1): leads nurturing >24h since attempt, 1 text sent → send reminder
 //   step 2 (day 3): >72h, 2 texts sent → send last touch
@@ -45,6 +48,8 @@ Deno.serve(async (req) => {
   );
   const business = Deno.env.get("BUSINESS_NAME") ?? "Pool Remodel Quote";
   const siteUrl = Deno.env.get("SITE_URL") ?? "https://poolremodelquote.com";
+  const techPhone = Deno.env.get("TECH_PHONE_NUMBER");
+  const callOption = techPhone ? `\n\nOr call/text us directly: ${techPhone}` : "";
 
   const hoursAgo = (h: number) =>
     new Date(Date.now() - h * 3600_000).toISOString();
@@ -68,7 +73,7 @@ Deno.serve(async (req) => {
         // Day 1 reminder
         await sendText(
           lead.phone,
-          `Hi ${firstName}, ${business} here — still happy to get you that pool estimate. Nothing can happen until we've seen and measured the pool, and you don't need to be home for it. Pick a time here: ${link}`,
+          `Hi ${firstName}, ${business} here — still happy to get you that pool estimate. Pick a time here (no need to be home): ${link}${callOption}`,
         );
         await supabase
           .from("leads")
@@ -82,7 +87,7 @@ Deno.serve(async (req) => {
         // Day 3 last touch
         await sendText(
           lead.phone,
-          `Hi ${firstName}, last note from ${business} — we'll close out your estimate request soon. If you'd still like your pool measured and quoted, grab a time here (takes 10 seconds, no need to be home): ${link}`,
+          `Hi ${firstName}, last note from ${business} — closing out your estimate request soon. Grab a time here (no need to be home): ${link}${callOption}`,
         );
         await supabase
           .from("leads")

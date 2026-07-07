@@ -4,8 +4,10 @@
 //
 // Secrets used:
 //   TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER
-//   SAM_PHONE_NUMBER, BUSINESS_NAME
-//   SITE_URL (NEW — set with: supabase secrets set SITE_URL="https://poolremodelquote.com")
+//   SAM_PHONE_NUMBER, BUSINESS_NAME, SITE_URL
+//   TECH_PHONE_NUMBER (NEW — the tech's own number, given to customers as a
+//   call/text fallback in nurture texts. Set with:
+//   supabase secrets set TECH_PHONE_NUMBER="<number>")
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
@@ -58,6 +60,7 @@ Deno.serve(async (req) => {
     const business = Deno.env.get("BUSINESS_NAME") ?? "Pool Remodel Quote";
     const siteUrl = Deno.env.get("SITE_URL") ?? "https://poolremodelquote.com";
     const contractorPhone = Deno.env.get("SAM_PHONE_NUMBER");
+    const techPhone = Deno.env.get("TECH_PHONE_NUMBER");
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -72,6 +75,7 @@ Deno.serve(async (req) => {
 
     const firstName = (lead.name ?? "").split(" ")[0] || "there";
     const bookLink = `${siteUrl}/book/${lead.booking_token}`;
+    const callOption = techPhone ? `\n\nOr call/text us directly: ${techPhone}` : "";
     const sends: Promise<void>[] = [];
 
     switch (payload.type) {
@@ -120,7 +124,7 @@ Deno.serve(async (req) => {
         // Fired the moment the tech taps "No answer"
         sends.push(sendText(
           lead.phone,
-          `Hi ${firstName}, sorry we missed you — this is ${business} about your pool estimate. We can't prepare your estimate until we've seen and measured the pool. Tap here to pick a time that works (you don't need to be home): ${bookLink}`,
+          `Hi ${firstName}, sorry we missed you — this is ${business} about your pool estimate. Pick a time here (you don't need to be home): ${bookLink}${callOption}`,
         ));
         await supabase.from("nurture_messages").insert({
           lead_id: payload.lead_id,

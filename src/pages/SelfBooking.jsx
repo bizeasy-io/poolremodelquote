@@ -70,10 +70,13 @@ export default function SelfBooking() {
       .catch(() => setNotFound(true));
   }, [token]);
 
-  const days = useMemo(
-    () => (info?.availability ? upcomingDays(info.availability) : []),
-    [info],
-  );
+  const days = useMemo(() => {
+    if (!info?.availability) return [];
+    // No same-day self-booking — earliest selectable day is tomorrow.
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return upcomingDays(info.availability).filter((d) => !isSameDay(d, today));
+  }, [info]);
   const slots = useMemo(
     () =>
       selectedDay && info
@@ -103,6 +106,8 @@ export default function SelfBooking() {
         const fresh = await callFn({ action: "info", token });
         if (fresh.ok) setInfo(fresh);
         setSelectedSlot(null);
+      } else if (r.error === "same_day") {
+        alert(r.message);
       } else {
         alert("Something went wrong — please try again.");
       }

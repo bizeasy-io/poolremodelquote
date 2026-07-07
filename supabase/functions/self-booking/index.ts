@@ -21,6 +21,17 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// Compares by Eastern calendar date, not a fixed UTC offset — correct
+// across the DST transition without manual offset math.
+function easternDateString(date: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
 async function sendText(to: string, body: string) {
   const sid = Deno.env.get("TWILIO_ACCOUNT_SID")!;
   const token = Deno.env.get("TWILIO_AUTH_TOKEN")!;
@@ -115,6 +126,16 @@ Deno.serve(async (req) => {
       const when = new Date(payload.scheduled_at);
       if (isNaN(when.getTime()) || when.getTime() < Date.now()) {
         return json({ ok: false, error: "Invalid time" }, 400);
+      }
+
+      // No same-day self-booking — earliest is tomorrow, Eastern calendar date.
+      if (easternDateString(when) <= easternDateString(new Date())) {
+        return json({
+          ok: false,
+          error: "same_day",
+          message:
+            "Same-day booking isn't available online — please call or text us to schedule for today.",
+        }, 400);
       }
 
       // Reject if the slot got taken since the page loaded (90-min buffer)
