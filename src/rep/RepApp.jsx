@@ -5,6 +5,7 @@ import { Screen, BrandBar, ORANGE } from "./ui";
 import DayView from "./DayView";
 import LeadDetail from "./LeadDetail";
 import AppointmentDetail from "./AppointmentDetail";
+import MeasureFlow from "./measure/MeasureFlow";
 import Settings from "./Settings";
 
 function Login() {
@@ -87,6 +88,7 @@ export default function RepApp() {
       <Route index element={<DayView />} />
       <Route path="lead/:id" element={<LeadDetail />} />
       <Route path="appointment/:id" element={<AppointmentDetail />} />
+      <Route path="measure/:id" element={<MeasureFlow />} />
       <Route path="settings" element={<Settings />} />
     </Routes>
   );

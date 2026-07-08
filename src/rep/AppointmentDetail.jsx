@@ -293,13 +293,13 @@ export default function AppointmentDetail() {
       {!done && (
         <>
           <button
-            onClick={markComplete}
+            onClick={() => navigate(`/rep/measure/${id}`)}
             disabled={busy}
             className="w-full rounded-xl py-3.5 text-white font-medium mb-2 flex items-center justify-center gap-2 disabled:opacity-50"
             style={{ background: GREEN }}
           >
             <Ruler size={19} />
-            Mark measure complete
+            Start measure
           </button>
           <button
             onClick={markNoAccess}
