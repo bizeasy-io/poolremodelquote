@@ -9,6 +9,7 @@ import { supabase } from "../../lib/supabase";
 import { Screen, BackHeader, ORANGE, GREEN, GREEN_DARK } from "../ui";
 import ShapeBuilder from "./ShapeBuilder";
 import AreaWithNotes from "./AreaWithNotes";
+import SectionPhotos from "./SectionPhotos";
 import MeasureSummary from "./MeasureSummary";
 import { DualInput } from "./DualInput";
 import {
@@ -113,8 +114,24 @@ const emptyMeasure = () => ({
   cageRoofSections: [],
   ladders: 0,
   rails: 0,
+  // Fittings & replacements — plastic pieces swapped during a remodel
+  fittings: {
+    returnJets: 0,
+    mainDrainCovers: 0,
+    vacuumPorts: 0,
+    skimmerFaceplates: 0,
+    lightTrimRings: 0,
+    stepRailAnchors: 0,
+  },
+  // Systems — service toggles
+  leakDetection: null,
+  waterTrucks: null,
+  skimmerReplace: null,
+  skimmerExtCount: 0,        // skimmers needing an extension collar
+  skimmerNewDeckHeight: { ft: "", in: "" }, // riser height = new deck rise
   damagePhotographed: null, // true = photos taken, false = none found
   damageNotes: "",
+  photos: {}, // { [sectionId]: [ {path, section, status, localUrl} ] }
 });
 
 export default function MeasureFlow() {
@@ -141,6 +158,15 @@ export default function MeasureFlow() {
   }, [id]);
 
   const set = (patch) => setM((prev) => ({ ...prev, ...patch }));
+  const sectionPhotos = (id) => m.photos?.[id] ?? [];
+  const setSectionPhotos = (id, next) =>
+    setM((prev) => ({
+      ...prev,
+      photos: {
+        ...prev.photos,
+        [id]: typeof next === "function" ? next(prev.photos?.[id] ?? []) : next,
+      },
+    }));
   const setSpa = (patch) => setM((prev) => ({ ...prev, spa: { ...prev.spa, ...patch } }));
   const toggle = (panelId) => setOpen((cur) => (cur === panelId ? null : panelId));
 
@@ -258,6 +284,9 @@ export default function MeasureFlow() {
           Rolling wheel, measured on site
         </div>
         <DualInput label="Perimeter" value={m.perimeter} onChange={(v) => set({ perimeter: v })} />
+        <SectionPhotos section="perimeter" leadId={appt.lead_id}
+          photos={sectionPhotos("perimeter")}
+          onChange={(next) => setSectionPhotos("perimeter", next)} />
       </Panel>
 
       <Panel id="floor" title="Pool floor area" open={open === "floor"}
@@ -300,6 +329,9 @@ export default function MeasureFlow() {
             <span className="text-neutral-500" style={fs(0.78)}>gal ÷ 7.48 ÷ avg depth</span>
           </div>
         )}
+        <SectionPhotos section="floor" leadId={appt.lead_id}
+          photos={sectionPhotos("floor")}
+          onChange={(next) => setSectionPhotos("floor", next)} />
       </Panel>
 
       <Panel id="depth" title="Average depth" open={open === "depth"}
@@ -323,6 +355,9 @@ export default function MeasureFlow() {
         <div className="text-neutral-500 mt-1" style={fs(0.75)}>
           Wall area = perimeter × avg depth = {round1(perimeterFt * avgDepth)} sq ft
         </div>
+        <SectionPhotos section="depth" leadId={appt.lead_id}
+          photos={sectionPhotos("depth")}
+          onChange={(next) => setSectionPhotos("depth", next)} />
       </Panel>
 
       <Panel id="pooltile" title="Pool tile" open={open === "pooltile"}
@@ -335,6 +370,9 @@ export default function MeasureFlow() {
           onChange={(v) => set({ poolPencilTile: v })} />
         <LinearFeet label="Flush cap / bullnose step edge (LF)" value={m.poolFlushCap}
           onChange={(v) => set({ poolFlushCap: v })} />
+        <SectionPhotos section="pooltile" leadId={appt.lead_id}
+          photos={sectionPhotos("pooltile")}
+          onChange={(next) => setSectionPhotos("pooltile", next)} />
       </Panel>
 
       <Panel id="coping" title="Coping" open={open === "coping"}
@@ -344,6 +382,9 @@ export default function MeasureFlow() {
         <CopingCorners
           inside={m.copingInside} outside={m.copingOutside}
           onInside={(v) => set({ copingInside: v })} onOutside={(v) => set({ copingOutside: v })} />
+        <SectionPhotos section="coping" leadId={appt.lead_id}
+          photos={sectionPhotos("coping")}
+          onChange={(next) => setSectionPhotos("coping", next)} />
       </Panel>
 
       {/* ---------- SPA ---------- */}
@@ -431,6 +472,9 @@ export default function MeasureFlow() {
             </div>
           </div>
         )}
+        {m.hasSpa && (<SectionPhotos section="spa" leadId={appt.lead_id}
+          photos={sectionPhotos("spa")}
+          onChange={(next) => setSectionPhotos("spa", next)} />)}
       </Panel>
 
       {/* ---------- ADDITIONS ---------- */}
@@ -469,6 +513,9 @@ export default function MeasureFlow() {
             />
           </div>
         )}
+        {m.hasDeck && (<SectionPhotos section="deck" leadId={appt.lead_id}
+          photos={sectionPhotos("deck")}
+          onChange={(next) => setSectionPhotos("deck", next)} />)}
       </Panel>
 
       <Panel id="cage" title="Pool cage" open={open === "cage"}
@@ -490,6 +537,9 @@ export default function MeasureFlow() {
             />
           </div>
         )}
+        {m.hasCage && (<SectionPhotos section="cage" leadId={appt.lead_id}
+          photos={sectionPhotos("cage")}
+          onChange={(next) => setSectionPhotos("cage", next)} />)}
       </Panel>
 
       <Panel id="rails" title="Rails & ladders" open={open === "rails"}

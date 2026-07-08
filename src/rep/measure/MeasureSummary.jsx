@@ -69,6 +69,16 @@ export default function MeasureSummary({ m, onEdit, onSend, busy }) {
     const c = segmentCount(v);
     return c > 1 ? `${round1(lfTotalFeet(v))} ft · ${c} seg` : `${round1(lfTotalFeet(v))} ft`;
   };
+  const PHOTO_SECTIONS = [
+    ["perimeter", "Perimeter"], ["floor", "Floor"], ["depth", "Depth"],
+    ["pooltile", "Pool tile"], ["coping", "Coping"],
+    ...(m.hasSpa ? [["spa", "Spa"]] : []),
+    ...(m.hasDeck ? [["deck", "Deck"]] : []),
+    ...(m.hasCage ? [["cage", "Cage"]] : []),
+  ];
+  const photosFor = (id) => (m.photos?.[id] ?? []).length;
+  const missingPhotos = PHOTO_SECTIONS.filter(([id]) => photosFor(id) === 0).map(([, label]) => label);
+  const totalPhotos = PHOTO_SECTIONS.reduce((s, [id]) => s + photosFor(id), 0);
   const extraTotal = (m.extraTileSections ?? []).reduce(
     (s, a) => s + toFeet(a.height) * toFeet(a.length),
     0,
@@ -124,12 +134,37 @@ export default function MeasureSummary({ m, onEdit, onSend, busy }) {
         <Line label="Rails / ladders" value={`${m.rails} / ${m.ladders}`} onClick={() => onEdit("rails")} />
       </Group>
 
+      <Group title="Fittings & systems">
+        {(m.fittings?.returnJets ?? 0) > 0 && <Line label="Return jets" value={`${m.fittings.returnJets}`} onClick={() => onEdit("fittings")} />}
+        {(m.fittings?.mainDrainCovers ?? 0) > 0 && <Line label="Main drain covers" value={`${m.fittings.mainDrainCovers}`} onClick={() => onEdit("fittings")} />}
+        {(m.fittings?.vacuumPorts ?? 0) > 0 && <Line label="Vacuum ports" value={`${m.fittings.vacuumPorts}`} onClick={() => onEdit("fittings")} />}
+        {(m.fittings?.skimmerFaceplates ?? 0) > 0 && <Line label="Skimmer faceplates" value={`${m.fittings.skimmerFaceplates}`} onClick={() => onEdit("fittings")} />}
+        {(m.fittings?.lightTrimRings ?? 0) > 0 && <Line label="Light trim rings" value={`${m.fittings.lightTrimRings}`} onClick={() => onEdit("fittings")} />}
+        {(m.fittings?.stepRailAnchors ?? 0) > 0 && <Line label="Step / rail anchors" value={`${m.fittings.stepRailAnchors}`} onClick={() => onEdit("fittings")} />}
+        <Line label="Leak detection" value={m.leakDetection ? "Yes" : "No"} onClick={() => onEdit("systems")} />
+        <Line label="Water trucks" value={m.waterTrucks ? "Yes" : "No"} onClick={() => onEdit("systems")} />
+        <Line label="Skimmer replacement" value={m.skimmerReplace ? "Yes" : "No"} onClick={() => onEdit("systems")} />
+        {m.hasDeck && m.skimmerExtCount > 0 && (
+          <Line label="Skimmer extensions" value={`${m.skimmerExtCount} · riser ${round1(toFeet(m.skimmerNewDeckHeight))} ft`} onClick={() => onEdit("systems")} />
+        )}
+      </Group>
+
       <Group title="Documentation">
         <Line
           label="Pre-existing damage"
           value={m.damagePhotographed === true ? "Photographed" : m.damagePhotographed === false ? "None found" : "Not checked"}
           onClick={() => onEdit("damage")}
         />
+      </Group>
+
+      <Group title="Photos for the installer">
+        <Line label="Total photos" value={`${totalPhotos}`} />
+        {missingPhotos.length > 0 && (
+          <div className="py-2 text-amber-700" style={fs(0.8)}>
+            No photos in: {missingPhotos.join(", ")}. The installer approves the
+            quote from these — add photos if you can, or send as-is.
+          </div>
+        )}
       </Group>
 
       <button

@@ -101,10 +101,27 @@ Deno.serve(async (req) => {
         break;
       }
       case "measure_complete": {
+        // 1. Customer — warm, sets the 24-hour expectation
         sends.push(sendText(
           lead.phone,
-          `Hi ${firstName}, thanks from ${business} — your pool has been measured. Your estimate is being prepared and you'll receive it within 24 hours.`,
+          `Hi ${firstName}, thanks from ${business} — your pool has been measured. Your quote and material selections will be sent to you within 24 hours.`,
         ));
+        // 2. Installer — review is their job; quote-review link comes in Phase 4
+        const installerPhone = Deno.env.get("INSTALLER_PHONE_NUMBER");
+        if (installerPhone) {
+          sends.push(sendText(
+            installerPhone,
+            `Measure submitted for ${lead.name}. Quote ready to review shortly.`,
+          ));
+        }
+        // 3. Measure tech — receipt that it saved
+        const techPhone = Deno.env.get("TECH_PHONE_NUMBER");
+        if (techPhone && techPhone !== installerPhone) {
+          sends.push(sendText(
+            techPhone,
+            `Measure for ${lead.name} submitted successfully.`,
+          ));
+        }
         break;
       }
       case "no_access": {
