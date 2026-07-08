@@ -12,6 +12,7 @@ import {
   toFeet,
   round1,
 } from "./geometry";
+import { lfTotalFeet, segmentCount } from "./SegmentedLinearFeet";
 
 const fs = (m) => ({ fontSize: `calc(var(--ms,1rem)*${m})` });
 
@@ -62,7 +63,12 @@ export default function MeasureSummary({ m, onEdit, onSend, busy }) {
   const perimeterFt = toFeet(m.perimeter);
   const avgDepth = averageDepth(m.depths.slice(0, m.depthMode));
   const IA = interiorArea(floorArea, perimeterFt, avgDepth);
-  const ft = (v) => `${round1(toFeet(v))} ft`;
+  const ft = (v) => `${round1(lfTotalFeet(v))} ft`;
+  // LF with a sanity-check segment count when it was entered in pieces
+  const ftSeg = (v) => {
+    const c = segmentCount(v);
+    return c > 1 ? `${round1(lfTotalFeet(v))} ft · ${c} seg` : `${round1(lfTotalFeet(v))} ft`;
+  };
   const extraTotal = (m.extraTileSections ?? []).reduce(
     (s, a) => s + toFeet(a.height) * toFeet(a.length),
     0,
@@ -87,9 +93,9 @@ export default function MeasureSummary({ m, onEdit, onSend, busy }) {
         <Line label="Perimeter" value={ft(m.perimeter)} onClick={() => onEdit("perimeter")} />
         <Line label="Floor area" value={`${round1(floorArea)} sq ft`} onClick={() => onEdit("floor")} />
         <Line label="Average depth" value={`${round1(avgDepth)} ft`} onClick={() => onEdit("depth")} />
-        <Line label="Waterline tile" value={ft(m.poolWaterlineTile)} onClick={() => onEdit("pooltile")} />
-        <Line label="Pencil tile" value={ft(m.poolPencilTile)} onClick={() => onEdit("pooltile")} />
-        <Line label="Flush cap tile" value={ft(m.poolFlushCap)} onClick={() => onEdit("pooltile")} />
+        <Line label="Waterline tile" value={ftSeg(m.poolWaterlineTile)} onClick={() => onEdit("pooltile")} />
+        <Line label="Pencil tile" value={ftSeg(m.poolPencilTile)} onClick={() => onEdit("pooltile")} />
+        <Line label="Flush cap tile" value={ftSeg(m.poolFlushCap)} onClick={() => onEdit("pooltile")} />
         <Line label="Coping" value={`${ft(m.coping)} · ${m.copingInside}in / ${m.copingOutside}out`} onClick={() => onEdit("coping")} />
       </Group>
 
@@ -101,11 +107,11 @@ export default function MeasureSummary({ m, onEdit, onSend, busy }) {
             onClick={() => onEdit("spa")}
           />
           {m.spa.topEdge === "coping" && (
-            <Line label="Spa coping LF" value={`${round1(toFeet(m.spa.spaPerimeter) * (m.spa.copingRows === 2 ? 2 : 1))} ft`} onClick={() => onEdit("spa")} />
+            <Line label="Spa coping LF" value={`${round1(lfTotalFeet(m.spa.spaPerimeter) * (m.spa.copingRows === 2 ? 2 : 1))} ft`} onClick={() => onEdit("spa")} />
           )}
-          <Line label="Spa waterline tile" value={ft(m.spa.perimeterTile)} onClick={() => onEdit("spa")} />
-          <Line label="Spa pencil tile" value={ft(m.spa.pencilTile)} onClick={() => onEdit("spa")} />
-          <Line label="Spa flush cap tile" value={ft(m.spa.flushCap)} onClick={() => onEdit("spa")} />
+          <Line label="Spa waterline tile" value={ftSeg(m.spa.perimeterTile)} onClick={() => onEdit("spa")} />
+          <Line label="Spa pencil tile" value={ftSeg(m.spa.pencilTile)} onClick={() => onEdit("spa")} />
+          <Line label="Spa flush cap tile" value={ftSeg(m.spa.flushCap)} onClick={() => onEdit("spa")} />
         </Group>
       )}
 

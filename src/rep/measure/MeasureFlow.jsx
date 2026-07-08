@@ -13,11 +13,17 @@ import MeasureSummary from "./MeasureSummary";
 import { DualInput } from "./DualInput";
 import {
   YesNo,
-  LinearFeet,
   CountStepper,
   Segmented,
   CopingCorners,
 } from "./inputs";
+// Segmented LF replaces the old single-pair LinearFeet everywhere (field note:
+// runs are often several segments — 114+80+92 — that must auto-total).
+import {
+  SegmentedLinearFeet as LinearFeet,
+  lfTotalFeet,
+  segmentCount,
+} from "./SegmentedLinearFeet";
 import {
   sectionsTotal,
   averageDepth,
@@ -320,8 +326,8 @@ export default function MeasureFlow() {
       </Panel>
 
       <Panel id="pooltile" title="Pool tile" open={open === "pooltile"}
-        done={toFeet(m.poolWaterlineTile) > 0}
-        summary={toFeet(m.poolWaterlineTile) > 0 ? `waterline ${round1(toFeet(m.poolWaterlineTile))} ft` : ""}
+        done={lfTotalFeet(m.poolWaterlineTile) > 0}
+        summary={lfTotalFeet(m.poolWaterlineTile) > 0 ? `waterline ${round1(lfTotalFeet(m.poolWaterlineTile))} ft` : ""}
         onToggle={toggle}>
         <LinearFeet label="Waterline / perimeter tile (LF)" value={m.poolWaterlineTile}
           onChange={(v) => set({ poolWaterlineTile: v })} />
@@ -332,7 +338,7 @@ export default function MeasureFlow() {
       </Panel>
 
       <Panel id="coping" title="Coping" open={open === "coping"}
-        done={toFeet(m.coping) > 0} summary={toFeet(m.coping) > 0 ? `${round1(toFeet(m.coping))} ft` : ""}
+        done={lfTotalFeet(m.coping) > 0} summary={lfTotalFeet(m.coping) > 0 ? `${round1(lfTotalFeet(m.coping))} ft` : ""}
         onToggle={toggle}>
         <LinearFeet label="Pool coping (LF)" value={m.coping} onChange={(v) => set({ coping: v })} />
         <CopingCorners
@@ -392,9 +398,9 @@ export default function MeasureFlow() {
                     value={m.spa.spaPerimeter}
                     onChange={(v) => setSpa({ spaPerimeter: v })} />
                 </div>
-                {m.spa.copingRows === 2 && toFeet(m.spa.spaPerimeter) > 0 && (
+                {m.spa.copingRows === 2 && lfTotalFeet(m.spa.spaPerimeter) > 0 && (
                   <div className="text-neutral-500 mb-1" style={fs(0.75)}>
-                    Double row → {round1(toFeet(m.spa.spaPerimeter) * 2)} LF coping
+                    Double row → {round1(lfTotalFeet(m.spa.spaPerimeter) * 2)} LF coping
                   </div>
                 )}
                 <CopingCorners
