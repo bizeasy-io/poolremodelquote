@@ -316,10 +316,23 @@ export default function AppointmentDetail() {
         </>
       )}
       {done && (
-        <div className="text-center text-white/60 text-sm py-2">
-          Measure complete — customer has been told their estimate is on the
-          way.
-        </div>
+        <>
+          <div className="text-center text-white/60 text-sm py-2">
+            Measure complete — customer has been told their estimate is on the
+            way.
+          </div>
+          <button
+            onClick={() => navigate(`/rep/measure/${id}`)}
+            className="w-full rounded-xl py-3 mt-2"
+            style={{
+              border: "0.5px solid rgba(255,255,255,0.4)",
+              background: "rgba(255,255,255,0.08)",
+              color: "#fff",
+            }}
+          >
+            Resume / edit measure
+          </button>
+        </>
       )}
     </Screen>
   );

@@ -8,6 +8,8 @@ import { ChevronDown, ChevronRight, Check, Camera } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { Screen, BackHeader, ORANGE, GREEN, GREEN_DARK } from "../ui";
 import ShapeBuilder from "./ShapeBuilder";
+import AreaWithNotes from "./AreaWithNotes";
+import MeasureSummary from "./MeasureSummary";
 import { DualInput } from "./DualInput";
 import {
   YesNo,
@@ -24,6 +26,9 @@ import {
   round1,
 } from "./geometry";
 
+// Base measure text size — bumped up for field readability (older eyes).
+// A future S/M/L setting overrides --ms; everything scales off this one value.
+const MS_BASE = "1.15rem";
 const fs = (m) => ({ fontSize: `calc(var(--ms,1rem)*${m})` });
 
 // A collapsible measure section wrapper
@@ -113,6 +118,7 @@ export default function MeasureFlow() {
   const [m, setM] = useState(emptyMeasure());
   const [open, setOpen] = useState("perimeter");
   const [busy, setBusy] = useState(false);
+  const [view, setView] = useState("measure"); // "measure" | "summary"
 
   useEffect(() => {
     supabase
@@ -156,7 +162,14 @@ export default function MeasureFlow() {
       .eq("id", appt.lead_id);
   }
 
-  async function completeMeasure() {
+  async function reviewMeasure() {
+    // Save current state as a draft and show the summary "thank you" page.
+    await saveDraft(m);
+    setView("summary");
+    window.scrollTo(0, 0);
+  }
+
+  async function sendToQuote() {
     if (busy) return;
     setBusy(true);
     try {
@@ -180,18 +193,38 @@ export default function MeasureFlow() {
     }
   }
 
+  function editFromSummary(panelId) {
+    setView("measure");
+    setOpen(panelId);
+    window.scrollTo(0, 0);
+  }
+
   if (!appt) {
     return (
       <Screen>
-        <BackHeader label="Loading…" onBack={() => navigate("/rep")} />
+        <div style={{ "--ms": MS_BASE }}>
+          <BackHeader label="Loading…" onBack={() => navigate("/rep")} />
+        </div>
       </Screen>
     );
   }
 
   const name = appt.leads?.name ?? "";
 
+  if (view === "summary") {
+    return (
+      <Screen>
+        <div style={{ "--ms": MS_BASE }}>
+          <BackHeader label={`Measure · ${name}`} onBack={() => setView("measure")} />
+          <MeasureSummary m={m} onEdit={editFromSummary} onSend={sendToQuote} busy={busy} />
+        </div>
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
+      <div style={{ "--ms": MS_BASE }}>
       <BackHeader label={`Measure · ${name}`} onBack={() => navigate(`/rep/appointment/${id}`)} />
 
       {/* Running IA banner */}
@@ -378,28 +411,17 @@ export default function MeasureFlow() {
               </div>
             )}
 
-            {/* Spa perimeter (face) tile */}
-            <div className="mt-3 mb-1.5 text-neutral-500" style={fs(0.8)}>Spa exterior face tile</div>
-            <Segmented
-              options={[
-                { value: "none", label: "None" },
-                { value: "pool_side", label: "Pool-facing only" },
-                { value: "full", label: "Full perimeter" },
-              ]}
-              value={m.spa.perimeterTileScope}
-              onChange={(v) => setSpa({ perimeterTileScope: v })} />
-            {m.spa.perimeterTileScope !== "none" && (
-              <div className="mt-2.5">
-                <LinearFeet label="Spa face tile (LF)" value={m.spa.perimeterTile}
-                  onChange={(v) => setSpa({ perimeterTile: v })} />
-              </div>
-            )}
-
+            {/* Spa interior waterline tile (inputs kept; relabeled) */}
             <div className="mt-3">
+              <LinearFeet label="Spa waterline tile (LF)" value={m.spa.perimeterTile}
+                onChange={(v) => setSpa({ perimeterTile: v })} />
               <LinearFeet label="Spa pencil tile (LF)" value={m.spa.pencilTile}
                 onChange={(v) => setSpa({ pencilTile: v })} />
               <LinearFeet label="Spa flush cap / step edge (LF)" value={m.spa.flushCap}
                 onChange={(v) => setSpa({ flushCap: v })} />
+            </div>
+            <div className="mt-2 text-neutral-500" style={fs(0.75)}>
+              Tile on the OUTSIDE of a raised spa goes under "Extra Tile / Spa Perimeter Tile" below.
             </div>
           </div>
         )}
@@ -410,18 +432,17 @@ export default function MeasureFlow() {
         Deck, cage & extras
       </div>
 
-      <Panel id="extratile" title="Extra tile areas" open={open === "extratile"}
+      <Panel id="extratile" title="Extra Tile / Spa Perimeter Tile" open={open === "extratile"}
         done={m.extraTileSections.length > 0}
         summary={m.extraTileSections.length ? `${m.extraTileSections.length} area(s)` : ""}
         onToggle={toggle}>
         <div className="text-neutral-500 mb-2" style={fs(0.78)}>
-          Fountains, waterfalls, raised beams — each as a section
+          Raised spa exterior, spillover fountains, negative edges, raised beams. Enter height × length for square feet, and note what each area is.
         </div>
-        <ShapeBuilder
-          sections={m.extraTileSections}
+        <AreaWithNotes
+          areas={m.extraTileSections}
           onChange={(s) => { const n = { ...m, extraTileSections: s }; setM(n); saveDraft(n); }}
           onComplete={() => toggle("extratile")}
-          title="Area"
         />
       </Panel>
 
@@ -508,15 +529,16 @@ export default function MeasureFlow() {
       </Panel>
 
       <button
-        onClick={completeMeasure}
+        onClick={reviewMeasure}
         disabled={busy}
         className="w-full rounded-xl text-white font-medium mt-3 disabled:opacity-50"
         style={{ background: GREEN, padding: "14px 0", ...fs(1) }}
       >
-        {busy ? "Saving…" : "Complete measure"}
+        Review measure
       </button>
       <div className="text-center text-white/40 mt-2" style={fs(0.72)}>
-        Sends the customer their "estimate on the way" text
+        See the full summary, then send it to quote
+      </div>
       </div>
     </Screen>
   );
