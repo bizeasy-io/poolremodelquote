@@ -186,6 +186,7 @@ export default function MeasureFlow() {
   const IA = interiorArea(floorArea, perimeterFt, avgDepth);
   const deckArea = sectionsTotal(m.deckSections);
   const cageRoofArea = sectionsTotal(m.cageRoofSections);
+  const fittingsTotal = Object.values(m.fittings || {}).reduce((a, b) => a + (b || 0), 0);
 
   async function saveDraft(next) {
     await supabase
@@ -548,6 +549,56 @@ export default function MeasureFlow() {
         onToggle={toggle}>
         <CountStepper label="Handrails" value={m.rails} onChange={(v) => set({ rails: v })} />
         <CountStepper label="Ladders" value={m.ladders} onChange={(v) => set({ ladders: v })} />
+      </Panel>
+
+      {/* ---------- FITTINGS & SYSTEMS ---------- */}
+      <div className="uppercase tracking-widest mb-2 mt-4" style={{ color: ORANGE, ...fs(0.72) }}>
+        Fittings & systems
+      </div>
+
+      <Panel id="fittings" title="Fittings & replacements" open={open === "fittings"}
+        done={fittingsTotal > 0}
+        summary={fittingsTotal > 0 ? `${fittingsTotal} piece(s)` : ""}
+        onToggle={toggle}>
+        <CountStepper label="Return jets" value={m.fittings.returnJets}
+          onChange={(v) => set({ fittings: { ...m.fittings, returnJets: v } })} />
+        <CountStepper label="Main drain covers" value={m.fittings.mainDrainCovers}
+          onChange={(v) => set({ fittings: { ...m.fittings, mainDrainCovers: v } })} />
+        <CountStepper label="Vacuum ports" value={m.fittings.vacuumPorts}
+          onChange={(v) => set({ fittings: { ...m.fittings, vacuumPorts: v } })} />
+        <CountStepper label="Skimmer faceplates" value={m.fittings.skimmerFaceplates}
+          onChange={(v) => set({ fittings: { ...m.fittings, skimmerFaceplates: v } })} />
+        <CountStepper label="Light trim rings" value={m.fittings.lightTrimRings}
+          onChange={(v) => set({ fittings: { ...m.fittings, lightTrimRings: v } })} />
+        <CountStepper label="Step / rail anchors" value={m.fittings.stepRailAnchors}
+          onChange={(v) => set({ fittings: { ...m.fittings, stepRailAnchors: v } })} />
+      </Panel>
+
+      <Panel id="systems" title="Systems" open={open === "systems"}
+        done={m.leakDetection != null || m.waterTrucks != null || m.skimmerReplace != null}
+        summary={
+          m.leakDetection != null || m.waterTrucks != null || m.skimmerReplace != null
+            ? [m.leakDetection && "Leak", m.waterTrucks && "Trucks", m.skimmerReplace && "Skimmer"]
+                .filter(Boolean).join(", ") || "None"
+            : ""
+        }
+        onToggle={toggle}>
+        <div className="mb-1 text-neutral-500" style={fs(0.8)}>Leak detection?</div>
+        <YesNo value={m.leakDetection} onChange={(v) => set({ leakDetection: v })} />
+        <div className="mt-3 mb-1 text-neutral-500" style={fs(0.8)}>Water trucks needed?</div>
+        <YesNo value={m.waterTrucks} onChange={(v) => set({ waterTrucks: v })} />
+        <div className="mt-3 mb-1 text-neutral-500" style={fs(0.8)}>Skimmer replacement?</div>
+        <YesNo value={m.skimmerReplace} onChange={(v) => set({ skimmerReplace: v })} />
+        {m.hasDeck && (
+          <div className="mt-3">
+            <CountStepper label="Skimmers needing extension" value={m.skimmerExtCount}
+              onChange={(v) => set({ skimmerExtCount: v })} />
+            {m.skimmerExtCount > 0 && (
+              <DualInput label="New deck height (riser needed)" value={m.skimmerNewDeckHeight}
+                onChange={(v) => set({ skimmerNewDeckHeight: v })} />
+            )}
+          </div>
+        )}
       </Panel>
 
       {/* ---------- DAMAGE ---------- */}
