@@ -11,8 +11,10 @@ import {
   interiorArea,
   toFeet,
   round1,
+  poolGallons,
 } from "./geometry";
 import { lfTotalFeet, segmentCount } from "./SegmentedLinearFeet";
+import { areasTotal } from "./AreaWithNotes";
 
 const fs = (m) => ({ fontSize: `calc(var(--ms,1rem)*${m})` });
 
@@ -63,6 +65,13 @@ export default function MeasureSummary({ m, onEdit, onSend, busy }) {
   const perimeterFt = toFeet(m.perimeter);
   const avgDepth = averageDepth(m.depths.slice(0, m.depthMode));
   const IA = interiorArea(floorArea, perimeterFt, avgDepth);
+  const spaAvgDepth = m.hasSpa ? toFeet(m.spa.depth) : 0;
+  const spaArea = !m.hasSpa
+    ? 0
+    : m.spa.shape === "round"
+      ? Math.PI * (toFeet(m.spa.dims.diameter) / 2) ** 2
+      : toFeet(m.spa.dims.len) * toFeet(m.spa.dims.wid);
+  const fillGallons = poolGallons(floorArea, avgDepth, spaArea, spaAvgDepth);
   const ft = (v) => `${round1(lfTotalFeet(v))} ft`;
   // LF with a sanity-check segment count when it was entered in pieces
   const ftSeg = (v) => {
@@ -79,10 +88,7 @@ export default function MeasureSummary({ m, onEdit, onSend, busy }) {
   const photosFor = (id) => (m.photos?.[id] ?? []).length;
   const missingPhotos = PHOTO_SECTIONS.filter(([id]) => photosFor(id) === 0).map(([, label]) => label);
   const totalPhotos = PHOTO_SECTIONS.reduce((s, [id]) => s + photosFor(id), 0);
-  const extraTotal = (m.extraTileSections ?? []).reduce(
-    (s, a) => s + toFeet(a.height) * toFeet(a.length),
-    0,
-  );
+  const extraTotal = areasTotal(m.extraTileSections);
 
   return (
     <div>
@@ -125,28 +131,40 @@ export default function MeasureSummary({ m, onEdit, onSend, busy }) {
         </Group>
       )}
 
-      <Group title="Deck, cage & extras">
+      <Group title="Deck, Cage & Extras">
         {(m.extraTileSections ?? []).length > 0 && (
           <Line label="Extra / spa perimeter tile" value={`${round1(extraTotal)} sq ft`} onClick={() => onEdit("extratile")} />
         )}
         <Line label="Deck" value={m.hasDeck ? `${round1(sectionsTotal(m.deckSections))} sq ft` : "None"} onClick={() => onEdit("deck")} />
         <Line label="Cage" value={m.hasCage ? `roof ${round1(sectionsTotal(m.cageRoofSections))} sq ft, ${ft(m.cagePerimeter)} perim` : "None"} onClick={() => onEdit("cage")} />
-        <Line label="Rails / ladders" value={`${m.rails} / ${m.ladders}`} onClick={() => onEdit("rails")} />
+        <Line label="Rails / ladders / anchors" value={`${m.rails} / ${m.ladders} / ${m.railLadderAnchors ?? 0}`} onClick={() => onEdit("rails")} />
       </Group>
 
-      <Group title="Fittings & systems">
+      <Group title="Fittings & Replacements">
         {(m.fittings?.returnJets ?? 0) > 0 && <Line label="Return jets" value={`${m.fittings.returnJets}`} onClick={() => onEdit("fittings")} />}
         {(m.fittings?.mainDrainCovers ?? 0) > 0 && <Line label="Main drain covers" value={`${m.fittings.mainDrainCovers}`} onClick={() => onEdit("fittings")} />}
         {(m.fittings?.vacuumPorts ?? 0) > 0 && <Line label="Vacuum ports" value={`${m.fittings.vacuumPorts}`} onClick={() => onEdit("fittings")} />}
-        {(m.fittings?.skimmerFaceplates ?? 0) > 0 && <Line label="Skimmer faceplates" value={`${m.fittings.skimmerFaceplates}`} onClick={() => onEdit("fittings")} />}
+        {(m.fittings?.skimmerDoor ?? 0) > 0 && <Line label="Skimmer door" value={`${m.fittings.skimmerDoor}`} onClick={() => onEdit("fittings")} />}
+        {(m.fittings?.skimmerCover ?? 0) > 0 && <Line label="Skimmer cover" value={`${m.fittings.skimmerCover}`} onClick={() => onEdit("fittings")} />}
+        {(m.fittings?.skimmerReplacement ?? 0) > 0 && <Line label="Skimmer replacement" value={`${m.fittings.skimmerReplacement}`} onClick={() => onEdit("fittings")} />}
         {(m.fittings?.lightTrimRings ?? 0) > 0 && <Line label="Light trim rings" value={`${m.fittings.lightTrimRings}`} onClick={() => onEdit("fittings")} />}
-        {(m.fittings?.stepRailAnchors ?? 0) > 0 && <Line label="Step / rail anchors" value={`${m.fittings.stepRailAnchors}`} onClick={() => onEdit("fittings")} />}
-        <Line label="Leak detection" value={m.leakDetection ? "Yes" : "No"} onClick={() => onEdit("systems")} />
-        <Line label="Water trucks" value={m.waterTrucks ? "Yes" : "No"} onClick={() => onEdit("systems")} />
-        <Line label="Skimmer replacement" value={m.skimmerReplace ? "Yes" : "No"} onClick={() => onEdit("systems")} />
-        {m.hasDeck && m.skimmerExtCount > 0 && (
-          <Line label="Skimmer extensions" value={`${m.skimmerExtCount} · riser ${round1(toFeet(m.skimmerNewDeckHeight))} ft`} onClick={() => onEdit("systems")} />
-        )}
+        {(m.fittings?.newLight ?? 0) > 0 && <Line label="New light" value={`${m.fittings.newLight}`} onClick={() => onEdit("fittings")} />}
+      </Group>
+
+      <Group title="Extras">
+        <Line label="Leak detection" value={m.leakDetection ? "Yes" : m.leakDetection === false ? "No" : "—"} onClick={() => onEdit("extras")} />
+        <Line
+          label="Water trucks"
+          value={
+            m.waterTruckCount > 0
+              ? `${m.waterTruckCount} truck(s) · ${Math.round(fillGallons).toLocaleString()} gal`
+              : fillGallons > 0
+                ? `${Math.round(fillGallons).toLocaleString()} gal est.`
+                : "—"
+          }
+          onClick={() => onEdit("extras")}
+        />
+        <Line label="Start-up" value={m.startUp ? "Yes — customer hires own" : m.startUp === false ? "No" : "—"} onClick={() => onEdit("extras")} />
       </Group>
 
       <Group title="Documentation">

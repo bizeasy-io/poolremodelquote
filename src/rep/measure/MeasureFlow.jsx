@@ -31,6 +31,8 @@ import {
   interiorArea,
   toFeet,
   round1,
+  poolGallons,
+  trucksForFill,
 } from "./geometry";
 
 // Base measure text size — bumped up for field readability (older eyes).
@@ -114,21 +116,22 @@ const emptyMeasure = () => ({
   cageRoofSections: [],
   ladders: 0,
   rails: 0,
-  // Fittings & replacements — plastic pieces swapped during a remodel
+  railLadderAnchors: 0, // moved out of fittings (v6)
+  // Fittings & replacements — pieces swapped during a remodel
   fittings: {
     returnJets: 0,
     mainDrainCovers: 0,
     vacuumPorts: 0,
-    skimmerFaceplates: 0,
+    skimmerDoor: 0,
+    skimmerCover: 0,
+    skimmerReplacement: 0,
     lightTrimRings: 0,
-    stepRailAnchors: 0,
+    newLight: 0,
   },
-  // Systems — service toggles
+  // Extras — service flags
   leakDetection: null,
-  waterTrucks: null,
-  skimmerReplace: null,
-  skimmerExtCount: 0,        // skimmers needing an extension collar
-  skimmerNewDeckHeight: { ft: "", in: "" }, // riser height = new deck rise
+  waterTruckCount: 0, // trucks the tech books with the customer (no auto-round)
+  startUp: null, // $0 handoff flag — customer hires one of three recommended cos
   damagePhotographed: null, // true = photos taken, false = none found
   damageNotes: "",
   photos: {}, // { [sectionId]: [ {path, section, status, localUrl} ] }
@@ -152,7 +155,13 @@ export default function MeasureFlow() {
       .then(({ data }) => {
         setAppt(data);
         if (data?.leads?.measurement) {
-          setM({ ...emptyMeasure(), ...data.leads.measurement });
+          const saved = data.leads.measurement;
+          setM({
+            ...emptyMeasure(),
+            ...saved,
+            // deep-merge fittings so renamed/new keys always exist (v6)
+            fittings: { ...emptyMeasure().fittings, ...(saved.fittings || {}) },
+          });
         }
       });
   }, [id]);
@@ -187,6 +196,15 @@ export default function MeasureFlow() {
   const deckArea = sectionsTotal(m.deckSections);
   const cageRoofArea = sectionsTotal(m.cageRoofSections);
   const fittingsTotal = Object.values(m.fittings || {}).reduce((a, b) => a + (b || 0), 0);
+  // Water-truck estimate — total gallons from measured pool + spa volume.
+  const spaAvgDepth = m.hasSpa ? toFeet(m.spa.depth) : 0;
+  const spaArea = !m.hasSpa
+    ? 0
+    : m.spa.shape === "round"
+      ? Math.PI * (toFeet(m.spa.dims.diameter) / 2) ** 2
+      : toFeet(m.spa.dims.len) * toFeet(m.spa.dims.wid);
+  const fillGallons = poolGallons(floorArea, avgDepth, spaArea, spaAvgDepth);
+  const fillTrucks = trucksForFill(fillGallons);
 
   async function saveDraft(next) {
     await supabase
@@ -274,11 +292,11 @@ export default function MeasureFlow() {
       </div>
 
       {/* ---------- POOL ---------- */}
-      <div className="uppercase tracking-widest mb-2" style={{ color: ORANGE, ...fs(0.72) }}>
+      <div className="uppercase tracking-widest mb-2" style={{ color: ORANGE, ...fs(0.95) }}>
         Pool
       </div>
 
-      <Panel id="perimeter" title="Pool perimeter" open={open === "perimeter"}
+      <Panel id="perimeter" title="Pool Perimeter" open={open === "perimeter"}
         done={perimeterFt > 0} summary={perimeterFt > 0 ? `${round1(perimeterFt)} ft` : ""}
         onToggle={toggle}>
         <div className="text-neutral-500 mb-2" style={fs(0.8)}>
@@ -290,7 +308,7 @@ export default function MeasureFlow() {
           onChange={(next) => setSectionPhotos("perimeter", next)} />
       </Panel>
 
-      <Panel id="floor" title="Pool floor area" open={open === "floor"}
+      <Panel id="floor" title="Pool Floor Area" open={open === "floor"}
         done={floorArea > 0} summary={floorArea > 0 ? `${round1(floorArea)} sq ft` : ""}
         onToggle={toggle}>
         <div className="mb-3">
@@ -335,7 +353,7 @@ export default function MeasureFlow() {
           onChange={(next) => setSectionPhotos("floor", next)} />
       </Panel>
 
-      <Panel id="depth" title="Average depth" open={open === "depth"}
+      <Panel id="depth" title="Average Depth" open={open === "depth"}
         done={avgDepth > 0} summary={avgDepth > 0 ? `avg ${round1(avgDepth)} ft` : ""}
         onToggle={toggle}>
         <div className="mb-3">
@@ -361,7 +379,7 @@ export default function MeasureFlow() {
           onChange={(next) => setSectionPhotos("depth", next)} />
       </Panel>
 
-      <Panel id="pooltile" title="Pool tile" open={open === "pooltile"}
+      <Panel id="pooltile" title="Pool Tile" open={open === "pooltile"}
         done={lfTotalFeet(m.poolWaterlineTile) > 0}
         summary={lfTotalFeet(m.poolWaterlineTile) > 0 ? `waterline ${round1(lfTotalFeet(m.poolWaterlineTile))} ft` : ""}
         onToggle={toggle}>
@@ -389,7 +407,7 @@ export default function MeasureFlow() {
       </Panel>
 
       {/* ---------- SPA ---------- */}
-      <div className="uppercase tracking-widest mb-2 mt-4" style={{ color: ORANGE, ...fs(0.72) }}>
+      <div className="uppercase tracking-widest mb-2 mt-4" style={{ color: ORANGE, ...fs(0.95) }}>
         Spa
       </div>
 
@@ -479,8 +497,8 @@ export default function MeasureFlow() {
       </Panel>
 
       {/* ---------- ADDITIONS ---------- */}
-      <div className="uppercase tracking-widest mb-2 mt-4" style={{ color: ORANGE, ...fs(0.72) }}>
-        Deck, cage & extras
+      <div className="uppercase tracking-widest mb-2 mt-4" style={{ color: ORANGE, ...fs(0.95) }}>
+        Deck, Cage & Extras
       </div>
 
       <Panel id="extratile" title="Extra Tile / Spa Perimeter Tile" open={open === "extratile"}
@@ -488,7 +506,7 @@ export default function MeasureFlow() {
         summary={m.extraTileSections.length ? `${m.extraTileSections.length} area(s)` : ""}
         onToggle={toggle}>
         <div className="text-neutral-500 mb-2" style={fs(0.78)}>
-          Raised spa exterior, spillover fountains, negative edges, raised beams. Enter height × length for square feet, and note what each area is.
+          Raised spa exterior, spillover fountains, negative edges, raised beams. Pick a shape, enter its dimensions, and note what each area is.
         </div>
         <AreaWithNotes
           areas={m.extraTileSections}
@@ -497,7 +515,7 @@ export default function MeasureFlow() {
         />
       </Panel>
 
-      <Panel id="deck" title="Deck remodel" open={open === "deck"}
+      <Panel id="deck" title="Deck Remodel" open={open === "deck"}
         done={m.hasDeck != null}
         summary={m.hasDeck === false ? "None" : deckArea > 0 ? `${round1(deckArea)} sq ft` : ""}
         onToggle={toggle}>
@@ -519,7 +537,7 @@ export default function MeasureFlow() {
           onChange={(next) => setSectionPhotos("deck", next)} />)}
       </Panel>
 
-      <Panel id="cage" title="Pool cage" open={open === "cage"}
+      <Panel id="cage" title="Pool Cage" open={open === "cage"}
         done={m.hasCage != null}
         summary={m.hasCage === false ? "None" : cageRoofArea > 0 ? `roof ${round1(cageRoofArea)} sq ft` : ""}
         onToggle={toggle}>
@@ -543,70 +561,91 @@ export default function MeasureFlow() {
           onChange={(next) => setSectionPhotos("cage", next)} />)}
       </Panel>
 
-      <Panel id="rails" title="Rails & ladders" open={open === "rails"}
-        done={m.ladders > 0 || m.rails > 0}
-        summary={(m.ladders || m.rails) ? `${m.rails} rail(s), ${m.ladders} ladder(s)` : ""}
+      <Panel id="rails" title="Rails & Ladders" open={open === "rails"}
+        done={m.ladders > 0 || m.rails > 0 || m.railLadderAnchors > 0}
+        summary={(m.ladders || m.rails || m.railLadderAnchors) ? `${m.rails} rail(s), ${m.ladders} ladder(s), ${m.railLadderAnchors} anchor(s)` : ""}
         onToggle={toggle}>
         <CountStepper label="Handrails" value={m.rails} onChange={(v) => set({ rails: v })} />
         <CountStepper label="Ladders" value={m.ladders} onChange={(v) => set({ ladders: v })} />
+        <CountStepper label="Rail / Ladder Anchors" value={m.railLadderAnchors} onChange={(v) => set({ railLadderAnchors: v })} />
       </Panel>
 
-      {/* ---------- FITTINGS & SYSTEMS ---------- */}
-      <div className="uppercase tracking-widest mb-2 mt-4" style={{ color: ORANGE, ...fs(0.72) }}>
-        Fittings & systems
+      {/* ---------- FITTINGS & REPLACEMENTS ---------- */}
+      <div className="uppercase tracking-widest mb-2 mt-4" style={{ color: ORANGE, ...fs(0.95) }}>
+        Fittings & Replacements
       </div>
 
-      <Panel id="fittings" title="Fittings & replacements" open={open === "fittings"}
+      <Panel id="fittings" title="Fittings & Replacements" open={open === "fittings"}
         done={fittingsTotal > 0}
         summary={fittingsTotal > 0 ? `${fittingsTotal} piece(s)` : ""}
         onToggle={toggle}>
-        <CountStepper label="Return jets" value={m.fittings.returnJets}
+        <CountStepper label="Return Jets" value={m.fittings.returnJets}
           onChange={(v) => set({ fittings: { ...m.fittings, returnJets: v } })} />
-        <CountStepper label="Main drain covers" value={m.fittings.mainDrainCovers}
+        <CountStepper label="Main Drain Covers" value={m.fittings.mainDrainCovers}
           onChange={(v) => set({ fittings: { ...m.fittings, mainDrainCovers: v } })} />
-        <CountStepper label="Vacuum ports" value={m.fittings.vacuumPorts}
+        <CountStepper label="Vacuum Ports" value={m.fittings.vacuumPorts}
           onChange={(v) => set({ fittings: { ...m.fittings, vacuumPorts: v } })} />
-        <CountStepper label="Skimmer faceplates" value={m.fittings.skimmerFaceplates}
-          onChange={(v) => set({ fittings: { ...m.fittings, skimmerFaceplates: v } })} />
-        <CountStepper label="Light trim rings" value={m.fittings.lightTrimRings}
+        <CountStepper label="Skimmer Door" value={m.fittings.skimmerDoor}
+          onChange={(v) => set({ fittings: { ...m.fittings, skimmerDoor: v } })} />
+        <CountStepper label="Skimmer Cover" value={m.fittings.skimmerCover}
+          onChange={(v) => set({ fittings: { ...m.fittings, skimmerCover: v } })} />
+        <CountStepper label="Skimmer Replacement" value={m.fittings.skimmerReplacement}
+          onChange={(v) => set({ fittings: { ...m.fittings, skimmerReplacement: v } })} />
+        <CountStepper label="Light Trim Rings" value={m.fittings.lightTrimRings}
           onChange={(v) => set({ fittings: { ...m.fittings, lightTrimRings: v } })} />
-        <CountStepper label="Step / rail anchors" value={m.fittings.stepRailAnchors}
-          onChange={(v) => set({ fittings: { ...m.fittings, stepRailAnchors: v } })} />
+        <CountStepper label="New Light" value={m.fittings.newLight}
+          onChange={(v) => set({ fittings: { ...m.fittings, newLight: v } })} />
       </Panel>
 
-      <Panel id="systems" title="Systems" open={open === "systems"}
-        done={m.leakDetection != null || m.waterTrucks != null || m.skimmerReplace != null}
+      {/* ---------- EXTRAS ---------- */}
+      <div className="uppercase tracking-widest mb-2 mt-4" style={{ color: ORANGE, ...fs(0.95) }}>
+        Extras
+      </div>
+
+      <Panel id="extras" title="Extras" open={open === "extras"}
+        done={m.leakDetection != null || m.startUp != null || m.waterTruckCount > 0}
         summary={
-          m.leakDetection != null || m.waterTrucks != null || m.skimmerReplace != null
-            ? [m.leakDetection && "Leak", m.waterTrucks && "Trucks", m.skimmerReplace && "Skimmer"]
-                .filter(Boolean).join(", ") || "None"
-            : ""
+          [m.leakDetection && "Leak", m.waterTruckCount > 0 && `${m.waterTruckCount} truck(s)`, m.startUp && "Start-up"]
+            .filter(Boolean).join(", ") ||
+          (m.leakDetection != null || m.startUp != null ? "Reviewed" : "")
         }
         onToggle={toggle}>
-        <div className="mb-1 text-neutral-500" style={fs(0.8)}>Leak detection?</div>
+        <div className="mb-1 text-neutral-500" style={fs(0.8)}>Leak Detection?</div>
         <YesNo value={m.leakDetection} onChange={(v) => set({ leakDetection: v })} />
-        <div className="mt-3 mb-1 text-neutral-500" style={fs(0.8)}>Water trucks needed?</div>
-        <YesNo value={m.waterTrucks} onChange={(v) => set({ waterTrucks: v })} />
-        <div className="mt-3 mb-1 text-neutral-500" style={fs(0.8)}>Skimmer replacement?</div>
-        <YesNo value={m.skimmerReplace} onChange={(v) => set({ skimmerReplace: v })} />
-        {m.hasDeck && (
-          <div className="mt-3">
-            <CountStepper label="Skimmers needing extension" value={m.skimmerExtCount}
-              onChange={(v) => set({ skimmerExtCount: v })} />
-            {m.skimmerExtCount > 0 && (
-              <DualInput label="New deck height (riser needed)" value={m.skimmerNewDeckHeight}
-                onChange={(v) => set({ skimmerNewDeckHeight: v })} />
-            )}
+
+        <div className="mt-3 mb-1.5 text-neutral-500" style={fs(0.8)}>Water Trucks</div>
+        {fillGallons > 0 ? (
+          <div className="rounded-lg px-3 py-2 mb-2" style={{ background: "#f6f7f4" }}>
+            <div className="text-black font-medium" style={fs(0.85)}>
+              {Math.round(fillGallons).toLocaleString()} gallons · {round1(fillTrucks)} trucks for a full fill (5,000 gal each)
+            </div>
+            <div className="text-neutral-500" style={fs(0.75)}>
+              Order fewer and top off the rest with a hose to save $450/truck.
+            </div>
+          </div>
+        ) : (
+          <div className="text-neutral-500 mb-2" style={fs(0.78)}>
+            Enter pool floor area and depth to see truck estimate
+          </div>
+        )}
+        <CountStepper label="Trucks ordered" value={m.waterTruckCount}
+          onChange={(v) => set({ waterTruckCount: v })} />
+
+        <div className="mt-3 mb-1 text-neutral-500" style={fs(0.8)}>Start-Up?</div>
+        <YesNo value={m.startUp} onChange={(v) => set({ startUp: v })} />
+        {m.startUp && (
+          <div className="mt-2 rounded-lg px-3 py-2 text-neutral-600" style={{ background: "#f6f7f4", ...fs(0.78) }}>
+            $0 on the quote. Customer receives three recommended start-up companies to hire directly.
           </div>
         )}
       </Panel>
 
       {/* ---------- DAMAGE ---------- */}
-      <div className="uppercase tracking-widest mb-2 mt-4" style={{ color: ORANGE, ...fs(0.72) }}>
+      <div className="uppercase tracking-widest mb-2 mt-4" style={{ color: ORANGE, ...fs(0.95) }}>
         Documentation
       </div>
 
-      <Panel id="damage" title="Pre-existing damage" open={open === "damage"}
+      <Panel id="damage" title="Pre-Existing Damage" open={open === "damage"}
         done={m.damagePhotographed != null}
         summary={m.damagePhotographed === true ? "Photographed" : m.damagePhotographed === false ? "None found" : ""}
         onToggle={toggle}>

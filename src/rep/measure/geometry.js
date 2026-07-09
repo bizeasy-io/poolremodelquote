@@ -112,3 +112,14 @@ export const SHAPE_META = {
 export function round1(n) {
   return Math.round(n * 10) / 10;
 }
+
+// Total pool water volume in gallons, from measured floor area + depth and
+// (optional) spa area + depth. 7.48 gallons per cubic foot.
+export function poolGallons(floorArea, avgDepthFt, spaAreaFt2 = 0, spaDepthFt = 0) {
+  return (floorArea * avgDepthFt + spaAreaFt2 * spaDepthFt) * 7.48;
+}
+
+// Trucks needed for a full fill (decimal kept — the decimal is the sell).
+export function trucksForFill(gallons, truckGal = 5000) {
+  return gallons / truckGal;
+}
