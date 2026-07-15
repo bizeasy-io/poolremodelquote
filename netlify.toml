@@ -1,3 +1,11 @@
+# Netlify build + SPA routing. Auto-deploys on push to main.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Single-page app: serve index.html for any path so client-side routes
+# (/rep/*, /book/:token, …) resolve on direct load and refresh.
 [[redirects]]
   from = "/*"
   to = "/index.html"
