@@ -10,6 +10,7 @@ import {
   Clock,
   CornerUpLeft,
   Settings as SettingsIcon,
+  ClipboardList,
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import {
@@ -166,6 +167,13 @@ export default function DayView() {
           </div>
         </button>
         <div className="flex gap-2">
+          <button
+            onClick={() => navigate("/rep/ratecard")}
+            aria-label="Rate card"
+            className="w-10 h-10 rounded-full border border-white/30 bg-white/10 text-white flex items-center justify-center"
+          >
+            <ClipboardList size={20} />
+          </button>
           <button
             onClick={() => navigate("/rep/settings")}
             aria-label="Settings"

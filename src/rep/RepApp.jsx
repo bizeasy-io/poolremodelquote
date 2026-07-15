@@ -7,6 +7,7 @@ import LeadDetail from "./LeadDetail";
 import AppointmentDetail from "./AppointmentDetail";
 import MeasureFlow from "./measure/MeasureFlow";
 import Settings from "./Settings";
+import RateCard from "./ratecard/RateCard";
 
 function Login() {
   const [email, setEmail] = useState("");
@@ -90,6 +91,7 @@ export default function RepApp() {
       <Route path="appointment/:id" element={<AppointmentDetail />} />
       <Route path="measure/:id" element={<MeasureFlow />} />
       <Route path="settings" element={<Settings />} />
+      <Route path="ratecard" element={<RateCard />} />
     </Routes>
   );
 }
