@@ -23,7 +23,6 @@ import {
 import {
   SegmentedLinearFeet as LinearFeet,
   lfTotalFeet,
-  segmentCount,
 } from "./SegmentedLinearFeet";
 import {
   sectionsTotal,
@@ -39,6 +38,18 @@ import {
 // A future S/M/L setting overrides --ms; everything scales off this one value.
 const MS_BASE = "1.15rem";
 const fs = (m) => ({ fontSize: `calc(var(--ms,1rem)*${m})` });
+
+// v7 chip options
+const SKIMMER_BRANDS = [
+  { value: "hayward", label: "Hayward" },
+  { value: "pentair", label: "Pentair" },
+  { value: "other", label: "Other" },
+];
+const DECK_MATERIALS = [
+  { value: "concrete", label: "Concrete" },
+  { value: "pavers", label: "Pavers" },
+  { value: "other", label: "Other" },
+];
 
 // A collapsible measure section wrapper
 function Panel({ id, title, open, done, summary, onToggle, children }) {
@@ -92,11 +103,15 @@ const emptyMeasure = () => ({
   coping: { ft: "", in: "" },
   copingInside: 0,
   copingOutside: 0,
+  // Skimmers — a measure FACT (what the pool HAS), NOT a replacement count (v7 field 1-2).
+  // Spec §1 groups this under pool.skimmers; the current blob is flat, so it lives top-level.
+  skimmers: { count: 1, brand: null }, // brand: "hayward" | "pentair" | "other" | null
   hasSpa: null,
   spa: {
     shape: "round",
     dims: { diameter: { ft: "", in: "" }, len: { ft: "", in: "" }, wid: { ft: "", in: "" } },
     depth: { ft: "", in: "" },
+    elevation: null, // "raised" | "deck_level" | null — prerequisite for the top-edge question (v7 field 3)
     topEdge: null, // coping | tile
     copingRows: 1, // 1 | 2
     spaPerimeter: { ft: "", in: "" },
@@ -110,8 +125,13 @@ const emptyMeasure = () => ({
   },
   extraTileSections: [],
   hasDeck: null,
+  deckExistingMaterial: null, // "concrete" | "pavers" | "other" | null (v7 field 4)
   deckSections: [],
+  deckNewFooterLf: { segments: [{ ft: "", in: "" }] }, // segmented-LF shape; total 0 = no footer (v7 field 5)
+  deckPinnedFooterCount: 0, // stepper, always visible even at 0 (v7 field 6)
   hasCage: null,
+  cageGutterHeight: { ft: "", in: "" }, // raw entry pair for the paired ft/in input (v7 field 7)
+  cageGutterHeightFt: null, // canonical decimal feet — spec §1 gutter_height_ft; null until answered
   cagePerimeter: { ft: "", in: "" },
   cageRoofSections: [],
   ladders: 0,
@@ -135,6 +155,9 @@ const emptyMeasure = () => ({
   damagePhotographed: null, // true = photos taken, false = none found
   damageNotes: "",
   photos: {}, // { [sectionId]: [ {path, section, status, localUrl} ] }
+  // Manual line items — the pricing escape hatch (v7 field 8). BLANK price = null (UNPRICED),
+  // never 0. Tech adds lines at Send to Quote; Phase 4 approval adds added_by:"owner".
+  manualLines: [], // { id, description, qty|null, unit|null, price:number|null, added_by:"tech" }
 });
 
 export default function MeasureFlow() {
@@ -145,6 +168,7 @@ export default function MeasureFlow() {
   const [open, setOpen] = useState("perimeter");
   const [busy, setBusy] = useState(false);
   const [view, setView] = useState("measure"); // "measure" | "summary"
+  const [highlight, setHighlight] = useState(null); // field key flagged by a validation tap-to-jump
 
   useEffect(() => {
     supabase
@@ -159,14 +183,24 @@ export default function MeasureFlow() {
           setM({
             ...emptyMeasure(),
             ...saved,
-            // deep-merge fittings so renamed/new keys always exist (v6)
-            fittings: { ...emptyMeasure().fittings, ...(saved.fittings || {}) },
+            // deep-merge nested objects so renamed/new keys always exist (v6/v7)
+            fittings: { ...emptyMeasure().fittings, ...saved.fittings },
+            skimmers: { ...emptyMeasure().skimmers, ...saved.skimmers },
+            spa: { ...emptyMeasure().spa, ...saved.spa },
           });
         }
       });
   }, [id]);
 
   const set = (patch) => setM((prev) => ({ ...prev, ...patch }));
+  // setSave — mutate AND autosave the draft, so the v7 fields survive a mid-measure
+  // app kill (checklist §5.9). Mirrors the ShapeBuilder onChange autosave pattern.
+  const setSave = (patch) =>
+    setM((prev) => {
+      const next = { ...prev, ...patch };
+      saveDraft(next);
+      return next;
+    });
   const sectionPhotos = (id) => m.photos?.[id] ?? [];
   const setSectionPhotos = (id, next) =>
     setM((prev) => ({
@@ -177,7 +211,22 @@ export default function MeasureFlow() {
       },
     }));
   const setSpa = (patch) => setM((prev) => ({ ...prev, spa: { ...prev.spa, ...patch } }));
-  const toggle = (panelId) => setOpen((cur) => (cur === panelId ? null : panelId));
+  // setSpaSave — spa mutation with autosave (v7 elevation persistence)
+  const setSpaSave = (patch) =>
+    setM((prev) => {
+      const next = { ...prev, spa: { ...prev.spa, ...patch } };
+      saveDraft(next);
+      return next;
+    });
+  const toggle = (panelId) => {
+    setHighlight(null);
+    setOpen((cur) => (cur === panelId ? null : panelId));
+  };
+  // Amber ring for a field a validation banner jumped to; clears on interaction.
+  const hl = (key) =>
+    highlight === key
+      ? { boxShadow: "0 0 0 2px #f59e0b", borderRadius: 10, padding: 8, margin: "0 -8px" }
+      : null;
 
   // Derived quantities
   const floorArea = useMemo(() => {
@@ -244,9 +293,10 @@ export default function MeasureFlow() {
     }
   }
 
-  function editFromSummary(panelId) {
+  function editFromSummary(panelId, fieldKey = null) {
     setView("measure");
     setOpen(panelId);
+    setHighlight(fieldKey);
     window.scrollTo(0, 0);
   }
 
@@ -267,7 +317,8 @@ export default function MeasureFlow() {
       <Screen>
         <div style={{ "--ms": MS_BASE }}>
           <BackHeader label={`Measure · ${name}`} onBack={() => setView("measure")} />
-          <MeasureSummary m={m} onEdit={editFromSummary} onSend={sendToQuote} busy={busy} />
+          <MeasureSummary m={m} onEdit={editFromSummary} onSend={sendToQuote} busy={busy}
+            onManualLinesChange={(lines) => setSave({ manualLines: lines })} />
         </div>
       </Screen>
     );
@@ -406,6 +457,30 @@ export default function MeasureFlow() {
           onChange={(next) => setSectionPhotos("coping", next)} />
       </Panel>
 
+      {/* Skimmers — measure FACT (what the pool HAS), last item in POOL. Kept
+          deliberately far from the Fittings replacement steppers (v7 field 1-2). */}
+      <Panel id="skimmers" title="Skimmers" open={open === "skimmers"}
+        done={m.skimmers.count >= 1 ? !!m.skimmers.brand : true}
+        summary={
+          m.skimmers.count >= 1
+            ? `${m.skimmers.count}${m.skimmers.brand ? ` · ${SKIMMER_BRANDS.find((b) => b.value === m.skimmers.brand)?.label ?? m.skimmers.brand}` : ""}`
+            : "0 (gutter-overflow)"
+        }
+        onToggle={toggle}>
+        <div className="text-neutral-500 mb-2" style={fs(0.78)}>
+          How many skimmers the pool HAS — not how many need replacing.
+        </div>
+        <CountStepper label="Skimmer count" value={m.skimmers.count}
+          onChange={(v) => setSave({ skimmers: { ...m.skimmers, brand: v === 0 ? null : m.skimmers.brand, count: v } })} />
+        {m.skimmers.count >= 1 && (
+          <div className="mt-2" style={hl("skimmerBrand")}>
+            <div className="mb-1.5 text-neutral-500" style={fs(0.8)}>Skimmer brand</div>
+            <Segmented options={SKIMMER_BRANDS} value={m.skimmers.brand}
+              onChange={(v) => { setHighlight(null); setSave({ skimmers: { ...m.skimmers, brand: v } }); }} />
+          </div>
+        )}
+      </Panel>
+
       {/* ---------- SPA ---------- */}
       <div className="uppercase tracking-widest mb-2 mt-4" style={{ color: ORANGE, ...fs(0.95) }}>
         Spa
@@ -438,7 +513,25 @@ export default function MeasureFlow() {
             )}
             <DualInput label="Depth" value={m.spa.depth} onChange={(v) => setSpa({ depth: v })} />
 
-            {/* Top edge decision tree */}
+            {/* Spa elevation — PREREQUISITE to the top-edge question (v7 field 3).
+                Raised gates the double-row selector; Deck-level gates beam-LF inclusion. */}
+            <div className="mt-3 mb-1.5 text-neutral-500" style={fs(0.8)}>Spa elevation</div>
+            <div style={hl("spaElevation")}>
+              <Segmented
+                options={[{ value: "raised", label: "Raised" }, { value: "deck_level", label: "Deck-level" }]}
+                value={m.spa.elevation}
+                onChange={(v) => {
+                  setHighlight(null);
+                  // Raised → Deck-level silently collapses double row to single (a
+                  // deck-level spa is physically single-row; mirrors the beam math).
+                  const patch = { elevation: v };
+                  if (v === "deck_level" && m.spa.copingRows === 2) patch.copingRows = 1;
+                  setSpaSave(patch);
+                }} />
+            </div>
+
+            {/* Top-edge question does not render until elevation is answered. */}
+            {m.spa.elevation != null && (<>
             <div className="mt-3 mb-1.5 text-neutral-500" style={fs(0.8)}>Top edge of spa wall</div>
             <Segmented
               options={[{ value: "coping", label: "Coping" }, { value: "tile", label: "Bullnose tile" }]}
@@ -446,10 +539,14 @@ export default function MeasureFlow() {
 
             {m.spa.topEdge === "coping" && (
               <div className="mt-3">
-                <div className="mb-1.5 text-neutral-500" style={fs(0.8)}>Coping rows</div>
-                <Segmented
-                  options={[{ value: 1, label: "Single row" }, { value: 2, label: "Double row" }]}
-                  value={m.spa.copingRows} onChange={(v) => setSpa({ copingRows: v })} />
+                {/* Double-row selector exists ONLY on raised spas (v014 rule made
+                    structural). Deck-level coping is implicitly single row. */}
+                {m.spa.elevation === "raised" && (<>
+                  <div className="mb-1.5 text-neutral-500" style={fs(0.8)}>Coping rows</div>
+                  <Segmented
+                    options={[{ value: 1, label: "Single row" }, { value: 2, label: "Double row" }]}
+                    value={m.spa.copingRows} onChange={(v) => setSpa({ copingRows: v })} />
+                </>)}
                 <div className="mt-2.5">
                   <LinearFeet
                     label={m.spa.copingRows === 2
@@ -476,6 +573,7 @@ export default function MeasureFlow() {
                   onChange={(v) => setSpa({ topTile: v })} />
               </div>
             )}
+            </>)}
 
             {/* Spa interior waterline tile (inputs kept; relabeled) */}
             <div className="mt-3">
@@ -523,13 +621,33 @@ export default function MeasureFlow() {
         <YesNo value={m.hasDeck} onChange={(v) => set({ hasDeck: v })} />
         {m.hasDeck && (
           <div className="mt-3">
-            <ShapeBuilder
-              sections={m.deckSections}
-              onChange={(s) => { const n = { ...m, deckSections: s }; setM(n); saveDraft(n); }}
-              onComplete={() => toggle("deck")}
-              poolAreaChip={floorArea > 0 ? { label: "Pool area", area: floorArea } : null}
-              title="Section"
-            />
+            {/* Existing deck material — FIRST question after deck=yes (v7 field 4).
+                Chip row now; the Have→Want illustrated picker lands here later. */}
+            <div className="mb-1.5 text-neutral-500" style={fs(0.8)}>Existing deck material</div>
+            <div style={hl("deckExistingMaterial")}>
+              <Segmented options={DECK_MATERIALS} value={m.deckExistingMaterial}
+                onChange={(v) => { setHighlight(null); setSave({ deckExistingMaterial: v }); }} />
+            </div>
+
+            <div className="mt-3">
+              <ShapeBuilder
+                sections={m.deckSections}
+                onChange={(s) => { const n = { ...m, deckSections: s }; setM(n); saveDraft(n); }}
+                onComplete={() => toggle("deck")}
+                poolAreaChip={floorArea > 0 ? { label: "Pool area", area: floorArea } : null}
+                title="Section"
+              />
+            </div>
+
+            {/* New Footer — segmented-LF (reused exactly) + pin stepper (v7 fields 5-6).
+                Total 0 / no segments = no footer, valid. Pin stepper stays visible at 0. */}
+            <div className="uppercase tracking-widest mt-4 mb-1.5" style={{ color: ORANGE, ...fs(0.8) }}>
+              New Footer
+            </div>
+            <LinearFeet label="New footer (LF)" value={m.deckNewFooterLf}
+              onChange={(v) => setSave({ deckNewFooterLf: v })} />
+            <CountStepper label="Pinned footers" value={m.deckPinnedFooterCount}
+              onChange={(v) => setSave({ deckPinnedFooterCount: v })} />
           </div>
         )}
         {m.hasDeck && (<SectionPhotos section="deck" leadId={appt.lead_id}
@@ -545,6 +663,13 @@ export default function MeasureFlow() {
         <YesNo value={m.hasCage} onChange={(v) => set({ hasCage: v })} />
         {m.hasCage && (
           <div className="mt-3">
+            {/* Gutter height — FIRST field (read at the cage wall before walking the
+                perimeter). Canonical decimal feet into cageGutterHeightFt (v7 field 7). */}
+            <div className="mb-1.5 text-neutral-500" style={fs(0.8)}>Gutter height (deck to top of gutter)</div>
+            <div style={hl("cageGutterHeight")}>
+              <DualInput label="" value={m.cageGutterHeight}
+                onChange={(v) => setSave({ cageGutterHeight: v, cageGutterHeightFt: toFeet(v) || null })} />
+            </div>
             <LinearFeet label="Cage perimeter (LF)" value={m.cagePerimeter}
               onChange={(v) => set({ cagePerimeter: v })} />
             <div className="mt-2 mb-1.5 text-neutral-500" style={fs(0.8)}>Roof area</div>
