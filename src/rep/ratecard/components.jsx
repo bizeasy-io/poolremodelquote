@@ -3,6 +3,7 @@
 // rule lives here — PriceCell renders the price_set signal (§1a/§1b): a hollow
 // cell is AMBER and shows no number; a human touch (typing, or the "$0" confirm
 // for a deliberate free line like Silver Pearl) flips price_set true.
+import { useState } from "react";
 import { UNITS } from "./schema";
 import { NAVY, ORANGE } from "../ui";
 
@@ -18,11 +19,37 @@ function money(n) {
   return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// Quantity/percent display — natural precision, NEVER forced to .00 (§2.4:
+// an IA floor is "750", not "750.00").
+function quantity(n) {
+  return String(Number(n) || 0);
+}
+
+// Filter a raw keystroke string to digits + a single decimal point. No
+// formatting, no reformatting — this is the whole point of the blur pattern:
+// while focused the input holds exactly what was typed so the caret never jumps.
+function filterNumeric(str) {
+  let next = String(str).replace(/[^0-9.]/g, "");
+  const firstDot = next.indexOf(".");
+  if (firstDot !== -1) {
+    next = next.slice(0, firstDot + 1) + next.slice(firstDot + 1).replace(/\./g, "");
+  }
+  return next;
+}
+
 // A single price field with the price_set behaviour.
 //   na=true  → grey dash (which-column-applies rule, §1.4)
 //   hollow   → amber, empty (no placeholder number, §1b)
 //   set      → shows the value
+//
+// Format-on-blur: while focused the input holds a RAW typed string (draft !==
+// null); on blur it parses, formats (currency → 2dp; quantity → natural), and
+// commits the canonical value. Currency vs quantity is read off `prefix`
+// ("$" = currency, "" = quantity/percent). An empty field on blur resolves to
+// HOLLOW (price_set false), never $0.00 — the "set $0" button is the only path
+// to a deliberate zero.
 export function PriceCell({ cell, onChange, prefix = "$", suffix = "", na = false, label }) {
+  const [draft, setDraft] = useState(null); // null = not editing; string = live raw input
   if (na) {
     return (
       <div className="flex flex-col gap-0.5">
@@ -35,9 +62,24 @@ export function PriceCell({ cell, onChange, prefix = "$", suffix = "", na = fals
     );
   }
   const hollow = !cell?.price_set;
-  const commit = (raw) => {
-    const cleaned = String(raw).replace(/[^0-9.]/g, "");
-    onChange({ value: cleaned === "" ? 0 : parseFloat(cleaned) || 0, price_set: true });
+  const isCurrency = prefix === "$";
+  const fmt = (v) => (isCurrency ? money(v) : quantity(v));
+
+  const displayValue =
+    draft !== null ? draft : hollow ? "" : fmt(cell.value);
+
+  const onFocus = () => setDraft(hollow ? "" : String(cell.value)); // raw, unformatted for editing
+  const onBlur = (e) => {
+    // Read the live input value (not the draft closure) so commit is never
+    // stale under any render timing.
+    const cleaned = filterNumeric(e.target.value);
+    setDraft(null);
+    if (cleaned === "" || cleaned === ".") {
+      // Empty → HOLLOW, never a silent $0.00 (§1a/§1b).
+      onChange({ value: 0, price_set: false });
+      return;
+    }
+    onChange({ value: parseFloat(cleaned) || 0, price_set: true });
   };
   return (
     <div className="flex flex-col gap-0.5">
@@ -51,8 +93,10 @@ export function PriceCell({ cell, onChange, prefix = "$", suffix = "", na = fals
         {prefix && <span style={{ color: hollow ? AMBER_TEXT : "#666", ...fs(0.8) }}>{prefix}</span>}
         <input
           inputMode="decimal"
-          value={hollow ? "" : money(cell.value)}
-          onChange={(e) => commit(e.target.value)}
+          value={displayValue}
+          onFocus={onFocus}
+          onChange={(e) => setDraft(filterNumeric(e.target.value))}
+          onBlur={onBlur}
           placeholder=""
           className="w-full bg-transparent outline-none text-right text-black"
           style={fs(0.85)}
